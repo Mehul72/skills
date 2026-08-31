@@ -8,12 +8,25 @@ in that repo picks them up.
 One command, on any machine:
 
 ```bash
+npx github:Mehul72/skills install
+```
+
+npm 12 and later refuse git sources unless you say so, so on those add one flag:
+
+```bash
+npx --allow-git=root github:Mehul72/skills install
+```
+
+Either way you get the global layer installed and `skills` on your PATH. There is a
+curl equivalent if you would rather not go through npm:
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/Mehul72/skills/main/bootstrap.sh | bash
 ```
 
-That clones the library, installs the global layer, and puts `skills` on your PATH.
-Private repo? Clone it yourself and run `./bootstrap.sh` from inside the clone; it
-detects that and skips the network.
+Both clone or copy the library to `~/.agent-skills`, install the global layer, and put
+`skills` on your PATH. Private repo? Clone it yourself and run `./bootstrap.sh` from
+inside the clone; it detects that and skips the network.
 
 If the repo was uploaded through a web UI, its files lose their executable bit. That
 is handled: run `bash bootstrap.sh` instead of `./bootstrap.sh` and it restores the
@@ -24,6 +37,40 @@ Then, once per repo you work in:
 ```bash
 skills init
 ```
+
+### Installing as a package
+
+`npm install -g github:Mehul72/skills` works too, and gives you the `skills` command,
+but it does not always finish the job by itself:
+
+| npm | what happens |
+|---|---|
+| 11 and earlier | the postinstall runs `skills install` for you |
+| 12 and later | git sources need `--allow-git=root`, and install scripts are blocked, so run `skills install` yourself afterwards |
+
+npm 12 blocks package install scripts by default and its own suggested
+`--allow-scripts` flag did not lift the block in testing, so treat the postinstall as
+a convenience on older npm and `skills install` as the thing that actually installs.
+Either way, one command finishes it:
+
+```bash
+npm install -g --allow-git=root github:Mehul72/skills
+skills install
+```
+
+The package never installs anything from a plain `npm install` as a dependency. The
+postinstall exits immediately unless the install was global, so adding this to a
+project's `package.json` cannot write to your `~/.claude`.
+
+**npm is a delivery mechanism, not the home.** An npm package directory is a bad place
+to live: npx wipes its cache, and nvm puts the node version in the global prefix path,
+so every symlink and every absolute `@import` pointing into one breaks silently on the
+next node upgrade. So an npm install copies the library to `~/.agent-skills` first and
+installs from there. If you already have a git clone at that path, it is used as is and
+the npm copy is ignored.
+
+Skip the postinstall entirely with `SKILLS_SKIP_POSTINSTALL=1`. It is also skipped
+when `CI` is set.
 
 ### Why two commands
 
@@ -56,13 +103,15 @@ Relative symlinks, so the repo stays portable and one edit updates every agent.
 ### Everything auto-updates
 
 Skills are symlinked into `~/.claude/skills/`, and the global instruction files import
-`AGENTS.md` from the clone by absolute path. So:
+`AGENTS.md` from `~/.agent-skills` by absolute path. So:
 
 ```bash
 skills update      # git pull, then re-link
 ```
 
-updates skills, rules, and the hook together. Claude Code also watches the skills
+updates skills, rules, and the hook together. That works when `~/.agent-skills` is a
+git clone. Install through npm instead and it is a plain copy with nothing to pull, so
+`skills update` tells you to re-run the installer. Claude Code also watches the skills
 directory, so edits land in a session you already have open.
 
 ### Commands
@@ -71,7 +120,7 @@ directory, so edits land in a session you already have open.
 skills install          global layer  (Claude Code, Codex, Gemini CLI)
 skills init [dir]       repo layer    (everything else)
 skills doctor           show what is installed where
-skills update           git pull, then re-install
+skills update           refresh the library, then re-install
 skills list             list the skills
 skills uninstall        remove the skills
 ```
@@ -85,6 +134,9 @@ prints the one line you need to add. The hook is merged into `settings.json` wit
 touching anything already configured.
 
 The lower level `./install.sh` is still there for a single repo install without the CLI.
+
+`skills update` pulls when the library is a git clone. On an npm copy there is
+nothing to pull, so it prints the install command to re-run instead.
 
 ### Validate
 

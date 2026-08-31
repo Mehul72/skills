@@ -1,0 +1,47 @@
+{
+  "name": "@mehul72/skills",
+  "version": "1.0.0",
+  "description": "Portable agent skills for backend work, installed once for every AI coding agent on the machine.",
+  "keywords": [
+    "claude-code",
+    "cursor",
+    "codex",
+    "agent-skills",
+    "ai-agents",
+    "coding-agent"
+  ],
+  "homepage": "https://github.com/Mehul72/skills#readme",
+  "bugs": "https://github.com/Mehul72/skills/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mehul72/skills.git"
+  },
+  "license": "MIT",
+  "author": "Mehul72",
+  "bin": {
+    "skills": "bin/skills",
+    "agent-skills": "bin/skills"
+  },
+  "scripts": {
+    "postinstall": "node scripts/postinstall.mjs",
+    "test": "bash validate.sh"
+  },
+  "files": [
+    "bin/",
+    "hooks/",
+    "scripts/",
+    "skills/",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "bootstrap.sh",
+    "install.sh",
+    "validate.sh"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux"
+  ]
+}

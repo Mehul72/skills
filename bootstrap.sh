@@ -22,7 +22,10 @@ BIN="${SKILLS_BIN:-$HOME/.local/bin}"
 command -v git >/dev/null 2>&1 || { echo "error: git is required" >&2; exit 1; }
 
 # Running from inside an existing clone? Use it and skip the network entirely.
+# An npm or npx package directory does not count: npx wipes its cache and nvm's
+# global prefix moves on every node upgrade, so bin/skills handles those itself.
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || true)"
+case "$HERE" in */node_modules/*|*/_npx/*) HERE="" ;; esac
 if [ -n "$HERE" ] && [ -f "$HERE/bin/skills" ]; then
   DIR="$HERE"
   echo "Using this clone: $DIR"

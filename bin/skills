@@ -4,7 +4,7 @@
 #   skills install          set up the global layer   (Claude Code, Codex, Gemini CLI)
 #   skills init [dir]       set up a repo             (Cursor, Copilot, Cline, Windsurf, ...)
 #   skills doctor           show what is installed where
-#   skills update           git pull, then re-run install
+#   skills update           refresh the library, then re-run install
 #   skills list             list the skills
 #   skills uninstall        remove what install/init wrote
 #
@@ -20,6 +20,7 @@ while [ -L "$SELF" ]; do
 done
 LIB="$(cd "$(dirname "$SELF")/.." && pwd)"
 SRC="$LIB/skills"
+HOME_DIR="${SKILLS_DIR:-$HOME/.agent-skills}"
 DRY=0; FORCE=0; MODE=link
 
 say()  { printf '  %s\n' "$*"; }
@@ -187,7 +188,39 @@ cmd_uninstall() {
   say "the import lines and the hook entry need removing by hand."
 }
 
+# npm delivers the library but is not a home for it. npx wipes its cache directory,
+# and nvm's global prefix carries the node version in its path, so every symlink and
+# every absolute @import pointing into an npm directory rots the moment either moves.
+# Copy the payload to $HOME_DIR once and run everything from there.
+from_npm() {
+  [ -d "$LIB/.git" ] && return 1
+  [ -f "$LIB/package.json" ] || return 1
+  case "$LIB" in */node_modules/*|*/_npx/*) return 0 ;; *) return 1 ;; esac
+}
+
+materialize() {
+  if [ -d "$HOME_DIR/.git" ]; then
+    say "using the git clone already at $HOME_DIR (npm copy ignored)"
+    return
+  fi
+  say "copying the library to $HOME_DIR"
+  [ "$DRY" = 1 ] && return
+  mkdir -p "$HOME_DIR/bin"
+  # Wipe first: a skill deleted upstream must not survive as a stale copy.
+  rm -rf "$HOME_DIR/skills" "$HOME_DIR/hooks"
+  cp -R "$LIB/skills" "$LIB/hooks" "$HOME_DIR/"
+  cp "$LIB/bin/skills" "$HOME_DIR/bin/skills"
+  for f in AGENTS.md CLAUDE.md README.md install.sh validate.sh bootstrap.sh package.json; do
+    [ -f "$LIB/$f" ] && cp "$LIB/$f" "$HOME_DIR/$f"
+  done
+  chmod +x "$HOME_DIR/bin/skills" "$HOME_DIR"/*.sh "$HOME_DIR"/hooks/*.sh 2>/dev/null || true
+  # Marker: `skills update` cannot git pull a copy, it has to go back through npm.
+  printf '%s\n' "$LIB" > "$HOME_DIR/.installed-by-npm"
+  mkdir -p "$HOME/.local/bin" && ln -sf "$HOME_DIR/bin/skills" "$HOME/.local/bin/skills"
+}
+
 SUB="${1:-}"; [ $# -gt 0 ] && shift || true
+REST=("$@")
 ARGS=()
 for a in "$@"; do
   case "$a" in
@@ -196,12 +229,33 @@ for a in "$@"; do
   esac
 done
 
+if from_npm && [ "${SKILLS_NO_HANDOFF:-0}" != 1 ]; then
+  case "$SUB" in
+    install|update)
+      materialize
+      [ "$DRY" = 1 ] || exec env SKILLS_NO_HANDOFF=1 bash "$HOME_DIR/bin/skills" \
+        install ${REST[@]+"${REST[@]}"}
+      ;;
+  esac
+fi
+
 case "$SUB" in
   install)   cmd_install ;;
   init)      cmd_init "${ARGS[0]:-$PWD}" ;;
   doctor)    cmd_doctor ;;
   list)      "$LIB/install.sh" --list ;;
-  update)    git -C "$LIB" pull --ff-only && MODE=link cmd_install ;;
+  update)
+    if [ -d "$LIB/.git" ]; then
+      git -C "$LIB" pull --ff-only && MODE=link cmd_install
+    elif [ -f "$LIB/.installed-by-npm" ]; then
+      warn "installed from npm, so there is nothing to git pull. Re-run the installer:"
+      say "    npx github:Mehul72/skills install"
+      say "    npm 12 and later gate git sources: add --allow-git=root"
+      exit 1
+    else
+      warn "$LIB is not a git clone. Reinstall it to update."
+      exit 1
+    fi ;;
   uninstall) cmd_uninstall ;;
   ""|-h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "unknown command: $SUB" >&2; exit 1 ;;
