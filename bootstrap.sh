@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # One-command install.
 #
-#   curl -fsSL https://raw.githubusercontent.com/<you>/skills/main/bootstrap.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Mehul72/skills/main/bootstrap.sh | bash
 #
 # Clones the library, installs the global layer for every agent that has one, and
 # puts `skills` on your PATH. Safe to re-run; it pulls instead of re-cloning.
 #
-# Private repo? Clone it yourself, then run ./bootstrap.sh from inside the clone.
+# No executable bit? Run it as:  bash bootstrap.sh
+# Private repo? Clone it yourself, then run bash bootstrap.sh from inside the clone.
 #
 # Env: SKILLS_REPO   git URL to clone       (default: this file's origin)
 #      SKILLS_DIR    where to clone         (default: ~/.agent-skills)
@@ -14,7 +15,7 @@
 
 set -euo pipefail
 
-REPO="${SKILLS_REPO:-https://github.com/CHANGE-ME/skills.git}"
+REPO="${SKILLS_REPO:-https://github.com/Mehul72/skills.git}"
 DIR="${SKILLS_DIR:-$HOME/.agent-skills}"
 BIN="${SKILLS_BIN:-$HOME/.local/bin}"
 
@@ -33,12 +34,17 @@ else
   git clone --depth 1 "$REPO" "$DIR"
 fi
 
+# A repo uploaded through a web UI or copied by hand loses its executable bits.
+# Restore them here so the install works from a fresh clone either way.
+chmod +x "$DIR/bin/skills" "$DIR/bootstrap.sh" "$DIR/install.sh" \
+         "$DIR/validate.sh" "$DIR"/hooks/*.sh 2>/dev/null || true
+
 mkdir -p "$BIN"
 ln -sf "$DIR/bin/skills" "$BIN/skills"
 echo "Linked $BIN/skills"
 echo
 
-"$DIR/bin/skills" install
+bash "$DIR/bin/skills" install
 
 echo
 case ":$PATH:" in

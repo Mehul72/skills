@@ -52,6 +52,11 @@ for f in sorted(glob.glob("skills/*/SKILL.md")) + ["AGENTS.md"]:
         if c not in names and c in {n for n in names} | set():
             fail.append(f"{f}: reference to missing skill '{c}'")
 
+for f in ("bootstrap.sh", "install.sh", "validate.sh", "bin/skills",
+          "hooks/inject-rules.sh"):
+    if os.path.exists(f) and not os.access(f, os.X_OK):
+        fail.append(f"{f}: not executable (chmod +x, and commit the mode bit)")
+
 if fail:
     print(f"FAIL ({len(fail)} issue(s))")
     for x in fail: print("  " + x)

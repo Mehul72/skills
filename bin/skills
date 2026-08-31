@@ -12,7 +12,13 @@
 
 set -euo pipefail
 
-LIB="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
+# Resolve through the PATH symlink so LIB points at the clone, not ~/.local/bin.
+SELF="${BASH_SOURCE[0]}"
+while [ -L "$SELF" ]; do
+  _t="$(readlink "$SELF")"
+  case "$_t" in /*) SELF="$_t" ;; *) SELF="$(dirname "$SELF")/$_t" ;; esac
+done
+LIB="$(cd "$(dirname "$SELF")/.." && pwd)"
 SRC="$LIB/skills"
 DRY=0; FORCE=0; MODE=link
 
@@ -72,6 +78,8 @@ import_line() {
 cmd_install() {
   echo "Global layer, applies to every repo on this machine."
   echo
+  # Claude Code executes the hook directly, so it needs the bit even if git lost it.
+  chmod +x "$LIB"/hooks/*.sh 2>/dev/null || true
 
   echo "Claude Code"
   relink_skills "$HOME/.claude/skills"

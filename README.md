@@ -8,12 +8,16 @@ in that repo picks them up.
 One command, on any machine:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/<you>/skills/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mehul72/skills/main/bootstrap.sh | bash
 ```
 
 That clones the library, installs the global layer, and puts `skills` on your PATH.
 Private repo? Clone it yourself and run `./bootstrap.sh` from inside the clone; it
 detects that and skips the network.
+
+If the repo was uploaded through a web UI, its files lose their executable bit. That
+is handled: run `bash bootstrap.sh` instead of `./bootstrap.sh` and it restores the
+bits itself before installing.
 
 Then, once per repo you work in:
 
