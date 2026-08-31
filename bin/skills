@@ -8,8 +8,8 @@
 #   skills list             list the skills
 #   skills uninstall        remove what install/init wrote
 #
-# Flags:  --link (default for install)  --copy  --dry-run  --force  NO_HOOK=1
-
+# Flags:  --link (default for install)  --copy  --dry-run  --force  --no-exclude
+#         NO_HOOK=1  NO_EXCLUDE=1
 set -euo pipefail
 
 # Resolve through the PATH symlink so LIB points at the clone, not ~/.local/bin.
@@ -21,7 +21,8 @@ done
 LIB="$(cd "$(dirname "$SELF")/.." && pwd)"
 SRC="$LIB/skills"
 HOME_DIR="${SKILLS_DIR:-$HOME/.agent-skills}"
-DRY=0; FORCE=0; MODE=link
+DRY=0; FORCE=0; MODE=link; NO_EXCLUDE="${NO_EXCLUDE:-0}"
+EXCLUDE_MARKER="# agent config written by 'skills init', personal to this clone"
 
 say()  { printf '  %s\n' "$*"; }
 ok()   { printf '  \033[32m+\033[0m %s\n' "$*"; }
@@ -118,6 +119,59 @@ PY
   say "    skills init"
 }
 
+# exclude_from_git REPO - keep the files init writes out of `git status`.
+#
+# .git/info/exclude is local to one clone and is never committed, so a teammate who
+# clones the repo sees none of this. A file already tracked is left alone: exclude has
+# no effect on anything in the index, and listing it would imply an effect it cannot
+# have. Nothing here is written twice, so re-running init is a no-op.
+exclude_from_git() {
+  local repo="$1"
+  if [ "$NO_EXCLUDE" = 1 ]; then say "left in git status (--no-exclude)"; return 0; fi
+  command -v git >/dev/null 2>&1 || return 0
+
+  # --git-common-dir, not --git-dir: a linked worktree shares the main repo's exclude.
+  local common
+  if ! common=$(git -C "$repo" rev-parse --git-common-dir 2>/dev/null); then
+    say "not a git repo yet, so nothing to exclude. Re-run init after git init."
+    return 0
+  fi
+  case "$common" in /*) ;; *) common="$repo/$common" ;; esac
+  local exclude="$common/info/exclude"
+
+  local f pending="" tracked="" n=0
+  for f in AGENTS.md CLAUDE.md GEMINI.md CONVENTIONS.md .clinerules .windsurfrules \
+           .github/copilot-instructions.md '*.from-skills-library'; do
+    case "$f" in
+      \**) ;;                      # a glob for the backup copies, nothing to stat
+      *)
+        # On a dry run the files do not exist yet, but a real run would have made them.
+        if [ "$DRY" != 1 ] && [ ! -e "$repo/$f" ]; then continue; fi
+        if git -C "$repo" ls-files --error-unmatch -- "$f" >/dev/null 2>&1; then
+          tracked="$tracked $f"; continue
+        fi ;;
+    esac
+    grep -qxF "$f" "$exclude" 2>/dev/null && continue
+    pending="$pending$f
+"
+    n=$((n+1))
+  done
+
+  if [ -z "$pending" ]; then
+    same ".git/info/exclude  (already listed)"
+  elif [ "$DRY" = 1 ]; then
+    printf '  \033[2m# append %s path(s) to %s\033[0m\n' "$n" "$exclude"
+  else
+    mkdir -p "$(dirname "$exclude")"
+    # A file not ending in a newline would otherwise swallow the first path onto its last line.
+    if [ -s "$exclude" ] && [ -n "$(tail -c1 "$exclude")" ]; then printf '\n' >> "$exclude"; fi
+    grep -qxF "$EXCLUDE_MARKER" "$exclude" 2>/dev/null || printf '%s\n' "$EXCLUDE_MARKER" >> "$exclude"
+    printf '%s' "$pending" >> "$exclude"
+    ok ".git/info/exclude  ($n path(s), this clone only)"
+  fi
+  if [ -n "$tracked" ]; then say "tracked already, left visible:$tracked"; fi
+}
+
 cmd_init() {
   local repo="${1:-$PWD}"
   [ -d "$repo" ] || { echo "no such directory: $repo" >&2; exit 1; }
@@ -154,6 +208,8 @@ cmd_init() {
   link_alias ".windsurfrules"                  "AGENTS.md"    "Windsurf"
   link_alias "GEMINI.md"                       "AGENTS.md"    "Gemini CLI"
   link_alias "CONVENTIONS.md"                  "AGENTS.md"    "Aider"
+  echo
+  exclude_from_git "$repo"
   echo
   say "Skills themselves are global. If you have not run 'skills install' yet, do that once."
 }
@@ -225,6 +281,7 @@ ARGS=()
 for a in "$@"; do
   case "$a" in
     --dry-run) DRY=1 ;; --force) FORCE=1 ;; --copy) MODE=copy ;; --link) MODE=link ;;
+    --no-exclude) NO_EXCLUDE=1 ;;
     *) ARGS+=("$a") ;;
   esac
 done

@@ -100,6 +100,25 @@ CONVENTIONS.md                  -> AGENTS.md           Aider
 
 Relative symlinks, so the repo stays portable and one edit updates every agent.
 
+### Those files stay out of git
+
+`skills init` adds what it wrote to `.git/info/exclude`, so none of it shows up in
+`git status`. That file is local to one clone and is never committed, so a teammate
+who clones the repo sees nothing of your setup, and no `.gitignore` change is proposed
+in your diff.
+
+Two things it deliberately does not do. A file already tracked in the repo is left
+alone and reported, because exclude has no effect on anything in the index and hiding
+a real `AGENTS.md` would be worse than showing it. And it never touches a repo before
+`git init`; run init again afterwards, or pass `--no-exclude` to skip the whole thing.
+
+```bash
+skills init                 # excludes AGENTS.md, CLAUDE.md, and the five aliases
+skills init --no-exclude    # leave them visible, to commit them for the team
+```
+
+Committing one anyway after the fact is `git add -f AGENTS.md`.
+
 ### Everything auto-updates
 
 Skills are symlinked into `~/.claude/skills/`, and the global instruction files import
@@ -126,7 +145,8 @@ skills uninstall        remove the skills
 ```
 
 Flags: `--dry-run` to see what it would do, `--copy` instead of symlinks, `--force` to
-overwrite, `NO_HOOK=1` to skip the per-turn hook.
+overwrite, `NO_HOOK=1` to skip the per-turn hook, `--no-exclude` or `NO_EXCLUDE=1` to
+leave the repo files visible to git.
 
 **Nothing is ever overwritten.** An existing `AGENTS.md`, `CLAUDE.md`, or agent rules
 file is left alone; the installer writes a `.from-skills-library` copy beside it and
