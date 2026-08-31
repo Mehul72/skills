@@ -66,6 +66,7 @@ Name the skills you are using in one line before starting. Load them; do not wor
 | React components | `react-review` |
 | Keyboard, screen reader, WCAG | `accessibility` |
 | User input, auth, secrets, config | `security-hardening` |
+| Naming, comments, making code readable | `readable-code` |
 | Review a diff | `code-quality` |
 | Clean up working code | `code-simplification` |
 | Summarise the chat, hand off to a new window | `handoff` |
@@ -95,6 +96,7 @@ Pull these in mid task when they appear, even if not in the original plan.
 - **Every outbound call has a timeout.**
 - **Never swallow an exception.** An auth check that fails open is a bypass.
 - **No secrets in source**, ever.
+- **Comment why, never what.** Name the intent instead of annotating the mechanism. No comment that restates the line below it.
 
 ## Skills that do not apply
 

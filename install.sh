@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
-# Install skills from this library into a target repository.
+# Install this skills library.
 #
-#   ./install.sh                 # install into the current directory
-#   ./install.sh /path/to/repo   # install into <repo>/.claude/skills
-#   ./install.sh --list          # show what's available
-#   NO_HOOK=1 ./install.sh       # skip the per-turn hook
+#   ./install.sh --user --link     # all projects, auto-updates on git pull  (recommended)
+#   ./install.sh --user            # all projects, copied
+#   ./install.sh                   # this repo only  (-> ./.claude/skills)
+#   ./install.sh /path/to/repo     # that repo only
+#   ./install.sh --list            # show what's available
+#   ./install.sh --uninstall --user
 #
-# Installs skills into <repo>/.claude/skills, plus AGENTS.md and CLAUDE.md at the
-# repo root, and a per-turn UserPromptSubmit hook in .claude/hooks.
-# Existing root files and hooks are never overwritten.
+# Flags
+#   --user        install to ~/.claude  instead of a project's .claude
+#   --link        symlink each skill back to this clone rather than copying, so
+#                 `git pull` updates every skill with no reinstall
+#   NO_HOOK=1     skip the per-turn UserPromptSubmit hook
+#
+# Never overwrites an existing CLAUDE.md, AGENTS.md, or hook. Merges the hook into
+# settings.json without touching anything already configured there.
 
 set -euo pipefail
 
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$LIB_DIR/skills"
-TARGET=""
+TARGET=""; USER_MODE=0; LINK=0; UNINSTALL=0
 
 describe() {  # first line of the YAML description, folded scalars included
   awk '/^---$/{c++;next}
@@ -32,94 +39,124 @@ while [[ $# -gt 0 ]]; do
         printf "  %-22s %s\n" "$(basename "$d")" "$(describe "$d/SKILL.md" | cut -c1-90)"
       done
       exit 0 ;;
-    -h|--help)  sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    -*)         echo "unknown option: $1" >&2; exit 1 ;;
-    *)          TARGET="$1"; shift ;;
+    --user)      USER_MODE=1; shift ;;
+    --link)      LINK=1; shift ;;
+    --uninstall) UNINSTALL=1; shift ;;
+    -h|--help)   sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -*)          echo "unknown option: $1" >&2; exit 1 ;;
+    *)           TARGET="$1"; shift ;;
   esac
 done
 
-TARGET="${TARGET:-$PWD}"
-[ -d "$TARGET" ] || { echo "error: no such directory: $TARGET" >&2; exit 1; }
-DEST="$TARGET/.claude/skills"
-mkdir -p "$DEST"
+if [ "$USER_MODE" = 1 ]; then
+  [ -z "$TARGET" ] || { echo "error: --user takes no path" >&2; exit 1; }
+  BASE="$HOME/.claude"; SCOPE="all projects"
+else
+  TARGET="${TARGET:-$PWD}"
+  [ -d "$TARGET" ] || { echo "error: no such directory: $TARGET" >&2; exit 1; }
+  BASE="$TARGET/.claude"; SCOPE="$TARGET"
+fi
+DEST="$BASE/skills"
 
+if [ "$UNINSTALL" = 1 ]; then
+  n=0
+  for d in "$SRC_DIR"/*/; do
+    name=$(basename "$d")
+    [ -e "$DEST/$name" ] || [ -L "$DEST/$name" ] || continue
+    rm -rf "$DEST/$name"; echo "  - $name"; n=$((n+1))
+  done
+  echo "removed $n skill(s) from $DEST"
+  echo "left in place: CLAUDE.md, AGENTS.md, hooks, and settings.json. Remove by hand."
+  exit 0
+fi
+
+mkdir -p "$DEST"
 count=0
 for d in "$SRC_DIR"/*/; do
   [ -f "$d/SKILL.md" ] || continue
   name=$(basename "$d")
   rm -rf "$DEST/$name"
-  cp -R "$d" "$DEST/$name"
-  echo "  + $name"
-  count=$((count + 1))
+  if [ "$LINK" = 1 ]; then ln -s "${d%/}" "$DEST/$name"; else cp -R "$d" "$DEST/$name"; fi
+  count=$((count+1))
 done
+echo "installed $count skill(s) -> $DEST  ($SCOPE)$([ "$LINK" = 1 ] && echo ', symlinked')"
 
-echo "installed $count skill(s) -> $DEST"
-
-# Always-on layer. Skills load on demand; these load every session, which is what
-# makes the routing and output rules apply without being asked for.
-install_root_file() {  # $1 = filename, $2 = hint shown when we skip
-  local src="$LIB_DIR/$1" dst="$TARGET/$1"
-  [ -f "$src" ] || return 0
-  if [ -e "$dst" ]; then
-    if cmp -s "$src" "$dst"; then
-      echo "  = $1 (unchanged)"
-    else
-      cp "$src" "$TARGET/$1.from-skills-library"
-      echo "  ! $1 exists, wrote $1.from-skills-library instead"
-      echo "      $2"
-    fi
-  else
-    cp "$src" "$dst"
-    echo "  + $1"
-  fi
+# Always-on layer. Skills load on demand; this loads every session.
+place() {  # $1 = source file, $2 = destination, $3 = hint when it already exists
+  [ -f "$1" ] || return 0
+  if [ -e "$2" ]; then
+    if cmp -s "$1" "$2"; then echo "  = $(basename "$2") (unchanged)"
+    else cp "$1" "$2.from-skills-library"
+         echo "  ! $(basename "$2") exists, wrote $(basename "$2").from-skills-library"
+         echo "      $3"; fi
+  else cp "$1" "$2"; echo "  + $2"; fi
 }
 
-install_root_file AGENTS.md \
-  "merge it in, or add its contents to your existing AGENTS.md"
-install_root_file CLAUDE.md \
-  "add the line '@AGENTS.md' to your existing CLAUDE.md"
-
-# Per-turn hook. Instruction files load once per session; this re-states the hard
-# rules on every prompt. Claude Code only. Other agents have no equivalent event.
-HOOKS_SRC="$LIB_DIR/hooks"
-if [ -d "$HOOKS_SRC" ] && [ "${NO_HOOK:-0}" != "1" ]; then
-  HOOKS_DST="$TARGET/.claude/hooks"
-  mkdir -p "$HOOKS_DST"
-  for f in "$HOOKS_SRC"/*; do
-    b=$(basename "$f")
-    if [ -e "$HOOKS_DST/$b" ] && ! cmp -s "$f" "$HOOKS_DST/$b"; then
-      echo "  ! .claude/hooks/$b exists and differs, left alone"
+if [ "$USER_MODE" = 1 ]; then
+  # Claude Code reads ~/.claude/CLAUDE.md and supports @path imports. Point it at
+  # the clone so `git pull` updates the rules too.
+  if [ -e "$BASE/CLAUDE.md" ]; then
+    if grep -qF "@$LIB_DIR/AGENTS.md" "$BASE/CLAUDE.md"; then
+      echo "  = ~/.claude/CLAUDE.md already imports the library"
     else
-      cp "$f" "$HOOKS_DST/$b"; chmod +x "$HOOKS_DST/$b" 2>/dev/null || true
-      echo "  + .claude/hooks/$b"
+      echo "  ! ~/.claude/CLAUDE.md exists. Add this line to it:"
+      echo "      @$LIB_DIR/AGENTS.md"
     fi
-  done
+  else
+    printf '@%s/AGENTS.md\n' "$LIB_DIR" > "$BASE/CLAUDE.md"
+    echo "  + ~/.claude/CLAUDE.md (imports $LIB_DIR/AGENTS.md)"
+  fi
+  echo "  i AGENTS.md is per-repo for Cursor and Codex. Copy it into each work repo:"
+  echo "      cp $LIB_DIR/AGENTS.md <repo>/AGENTS.md"
+else
+  place "$LIB_DIR/AGENTS.md" "$TARGET/AGENTS.md" \
+    "merge it into your existing AGENTS.md"
+  place "$LIB_DIR/CLAUDE.md" "$TARGET/CLAUDE.md" \
+    "add the line '@AGENTS.md' to your existing CLAUDE.md"
+fi
 
-  SETTINGS="$TARGET/.claude/settings.json"
+# Per-turn hook. Claude Code only; no other agent has an equivalent event.
+if [ -d "$LIB_DIR/hooks" ] && [ "${NO_HOOK:-0}" != "1" ]; then
+  if [ "$USER_MODE" = 1 ]; then
+    HOOK_CMD="$LIB_DIR/hooks/inject-rules.sh"          # runs from the clone, auto-updates
+    echo "  + hook -> $HOOK_CMD"
+  else
+    mkdir -p "$BASE/hooks"
+    for f in "$LIB_DIR"/hooks/*; do
+      b=$(basename "$f")
+      if [ -e "$BASE/hooks/$b" ] && ! cmp -s "$f" "$BASE/hooks/$b"; then
+        echo "  ! .claude/hooks/$b exists and differs, left alone"
+      else
+        cp "$f" "$BASE/hooks/$b"; chmod +x "$BASE/hooks/$b" 2>/dev/null || true
+        echo "  + .claude/hooks/$b"
+      fi
+    done
+    HOOK_CMD='${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-rules.sh'
+  fi
+
   if command -v python3 >/dev/null 2>&1; then
-    python3 - "$SETTINGS" <<'PYEOF'
+    python3 - "$BASE/settings.json" "$HOOK_CMD" <<'PYEOF'
 import json, os, sys
-p = sys.argv[1]
-cmd = "${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-rules.sh"
+p, cmd = sys.argv[1], sys.argv[2]
 try:
     cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 except json.JSONDecodeError:
-    print("  ! .claude/settings.json is not valid JSON, hook not registered")
-    sys.exit(0)
-hooks = cfg.setdefault("hooks", {})
-ups = hooks.setdefault("UserPromptSubmit", [])
+    print(f"  ! {p} is not valid JSON, hook not registered"); sys.exit(0)
+ups = cfg.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
 if any(cmd in json.dumps(e) for e in ups):
-    print("  = hook already registered in .claude/settings.json")
+    print("  = hook already registered")
 else:
     ups.append({"hooks": [{"type": "command", "command": cmd}]})
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    json.dump(cfg, open(p, "w"), indent=2)
-    open(p, "a").write("\n")
-    print("  + registered UserPromptSubmit hook in .claude/settings.json")
+    json.dump(cfg, open(p, "w"), indent=2); open(p, "a").write("\n")
+    print(f"  + registered UserPromptSubmit hook in {p}")
 PYEOF
   else
-    echo "  ! python3 not found. Register the hook manually in .claude/settings.json:"
-    echo '      "hooks": { "UserPromptSubmit": [ { "hooks": [ { "type": "command",'
-    echo '        "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-rules.sh" } ] } ] }'
+    echo "  ! python3 not found. Add to $BASE/settings.json by hand:"
+    echo "      \"hooks\": { \"UserPromptSubmit\": [ { \"hooks\": [ { \"type\": \"command\","
+    echo "        \"command\": \"$HOOK_CMD\" } ] } ] }"
   fi
 fi
+
+echo
+echo "Verify in a Claude Code session: /context (memory files), /hooks, then type /"

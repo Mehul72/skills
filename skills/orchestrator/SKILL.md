@@ -41,6 +41,7 @@ Read the request and answer three questions.
 | React components | `react-review` |
 | Keyboard, screen reader, WCAG | `accessibility` |
 | Handling user input, auth, secrets, config | `security-hardening` |
+| Naming, comments, code that is hard to follow | `readable-code` |
 | Review a diff, or decide whether it is ready | `code-quality` |
 | Clean up working code | `code-simplification` |
 | Any output the user reads | `response-style` (always) |
@@ -56,7 +57,7 @@ Order matters. Some skills gate others.
 ```
 grilling (if the approach is unsettled)
   → backend-design-doc or adr (if worth recording)
-  → write the code
+  → write the code       (readable-code applies while writing, not after)
   → security-hardening   (input, auth, secrets)
   → unit-test-gen        (tests, run them)
   → observability        (can we see it working)

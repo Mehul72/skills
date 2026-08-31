@@ -12,6 +12,8 @@ metadata:
   version: 1.1.3
 ---
 
+Not for: judging whether existing tests are any good, or whether a change is ready to ship, which is `code-quality`. This skill generates and fixes tests.
+
 # ⚠️ IMMEDIATE FIRST ACTIONS. DO THIS NOW ⚠️
 
 **STOP. Do NOT read source code, do NOT analyze functions, do NOT write tests yet.**

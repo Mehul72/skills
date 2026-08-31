@@ -11,7 +11,7 @@ The goal is the smallest code that is still correct and still readable. Not the 
 
 Rule: **behavior does not change.** If you cannot demonstrate that, it is a rewrite, not a simplification, and it needs tests and a review.
 
-Not for: making code faster, which is `sql-performance` or `web-performance`. Not for finding bugs, which is `code-quality`.
+Not for: making code faster, which is `sql-performance` or `web-performance`. Not for finding bugs, which is `code-quality`. Naming, comments, and how code reads are `readable-code`; this skill removes what should not be there, that one makes what remains legible.
 
 ## Step 1: Establish the safety net
 

@@ -19,7 +19,7 @@ If you have a slow endpoint but not a slow query, get the query before theorizin
 - **MySQL:** the slow query log, digested with `pt-query-digest`, or `performance_schema.events_statements_summary_by_digest`.
 - **ORM code:** turn on query logging for one request. This is usually where the N+1 becomes obvious.
 
-Rank by **total time = mean × calls**, not by worst case. A 3 ms query called 50,000 times per request is a bigger problem than one 2-second report.
+Rank by **total time = mean × calls**, not by worst case. A 3 ms query called 50,000 times an hour is a bigger problem than one 2-second report that runs nightly.
 
 ## Step 2: Read the plan
 

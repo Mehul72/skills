@@ -1,7 +1,7 @@
 ---
-
-## name: code-quality
+name: code-quality
 description: Hold code to a production ready bar before calling it done, and review a diff against correctness, error handling, tests, security, and operability. Use before saying work is complete, when reviewing a diff or PR, when a change touches error paths or concurrency, or when asked whether code is ready to ship.
+---
 
 # Code Quality
 
@@ -41,8 +41,6 @@ Review by decreasing cost of being wrong. Do not open with naming.
 - Integer overflow, truncation, and precision loss on conversion.
 - Timezones. A naive datetime crossing a boundary is a bug that appears twice a year.
 
-
-
 ### 2. Error handling
 
 The largest gap in generated code, so give it real attention.
@@ -54,8 +52,6 @@ The largest gap in generated code, so give it real attention.
 - No error text that leaks internals to a caller.
 - Timeouts on every external call. See `resilience-review`.
 
-
-
 ### 3. Concurrency
 
 Only if the code is concurrent, but check hard when it is.
@@ -66,8 +62,6 @@ Only if the code is concurrent, but check hard when it is.
 - Nothing spawned without a way to stop it or wait for it.
 - Cancellation and context propagated.
 
-
-
 ### 4. Tests
 
 - Do the tests test behavior, or do they restate the implementation? A test that mocks everything and asserts the mocks were called proves nothing.
@@ -76,8 +70,6 @@ Only if the code is concurrent, but check hard when it is.
 - No sleeps, no ordering dependence between tests, no shared mutable fixtures.
 - See `unit-test-gen` for generating them.
 
-
-
 ### 5. Interfaces and data
 
 - Public signatures: right level of abstraction, no leaked internals, hard to call incorrectly.
@@ -85,25 +77,22 @@ Only if the code is concurrent, but check hard when it is.
 - Schema change? Route to `migration-safety`.
 - New query on a hot path? Route to `sql-performance`.
 
-
-
 ### 6. Operability
 
 - Can you tell from production output that this is working, and why it stopped? See `observability`.
 - Is the failure mode acceptable when a dependency is slow rather than down?
 - Is it revertible? See `safe-rollout`.
 
-
-
 ### 7. Clarity
 
-Last, because it matters least of the seven and gets the most review comments.
+Last in review order, because a clarity problem is cheaper to fix than a correctness one. That is about ordering, not importance: unreadable code is where the next correctness bug comes from.
 
 - Names describe intent. Comments explain why, never what.
 - Nesting shallow, functions single purpose.
+- Error messages say what happened and what to do.
 - Consistent with the surrounding code rather than with your preference.
 
-
+Full standard, and the naming and comment rules in detail: `readable-code`. Apply it while writing, not only at review.
 
 ## Reporting
 
@@ -119,19 +108,15 @@ If the diff is clean, say so plainly. Manufacturing findings to look thorough tr
 
 ## Common rationalizations
 
-
-| Claim                               | Reality                                                                                     |
-| ----------------------------------- | ------------------------------------------------------------------------------------------- |
-| "It works, I ran it"                | You ran the happy path. The bar is what happens when input is wrong or a dependency is down |
-| "Tests pass"                        | Did you run them, and read the output? Say which                                            |
-| "I will add error handling later"   | Later is after the silent failure reaches production                                        |
-| "The edge case will not happen"     | Empty lists, duplicate submits, and concurrent requests all happen on day one               |
-| "It matches the existing pattern"   | Worth checking whether the existing pattern is correct                                      |
-| "Adding a test would take too long" | Less time than diagnosing the regression it would have caught                               |
-| "The reviewer will catch it"        | The reviewer is reading a diff without the context you have right now                       |
-
-
-
+| Claim | Reality |
+|---|---|
+| "It works, I ran it" | You ran the happy path. The bar is what happens when input is wrong or a dependency is down |
+| "Tests pass" | Did you run them, and read the output? Say which |
+| "I will add error handling later" | Later is after the silent failure reaches production |
+| "The edge case will not happen" | Empty lists, duplicate submits, and concurrent requests all happen on day one |
+| "It matches the existing pattern" | Worth checking whether the existing pattern is correct |
+| "Adding a test would take too long" | Less time than diagnosing the regression it would have caught |
+| "The reviewer will catch it" | The reviewer is reading a diff without the context you have right now |
 
 ## Red flags
 

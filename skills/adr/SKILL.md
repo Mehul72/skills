@@ -79,7 +79,7 @@ Use Redis Streams with consumer groups for the fan-out queue.
 - Consumer groups give us per-consumer lag metrics for free
 
 ### Negative
-- Redis becomes a availability dependency for notifications, not just a cache, needs its own alerting and a documented failure mode
+- Redis becomes an availability dependency for notifications, not just a cache, needs its own alerting and a documented failure mode
 - Retention is memory-bound: a consumer down for hours will drop messages.
   Mitigation: alert on consumer lag > 60s; cap stream length with MAXLEN ~1M
 - No native dead-letter queue; we build one (ADR-0008)

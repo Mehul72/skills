@@ -7,6 +7,8 @@ description: Write a backend technical design document (TDD) for a feature: busi
 
 Turn a feature's requirements into a design document a team can actually review: one that states what changes, shows the flow per interface, and names the schema and resource work it implies.
 
+Not for: recording a single decision and what was rejected, which is a one page `adr`. Use this when there are interfaces, flows, and a schema to specify.
+
 ## Inputs
 
 Gather whatever exists before writing, a spec, ticket, PRD, design notes, an MR/PR diff, or the user's description. Read the relevant source code to ground the design in what is actually there. If you have nothing but a one-line request, ask for the requirement first; do not invent a feature.

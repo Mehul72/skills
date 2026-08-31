@@ -42,9 +42,12 @@ The per-operation tables in `references/postgres.md` and `references/mysql.md` c
 Any change where old code and new schema cannot coexist must be split into separate, independently deployable steps. Never collapse these into one deploy.
 
 **Adding a column:**
-1. Add nullable, no default (or a constant default). *Deploy.*
-2. Backfill in batches (Step 4). Start dual-writing from application code.
-3. Add the `NOT NULL` constraint via the `NOT VALID` check-constraint route.
+1. Add it nullable, no default (or a constant default). *Deploy.*
+2. Deploy application code that writes the new column on every insert and update. *Deploy.*
+3. Backfill the existing rows in batches (Step 4).
+4. Add `NOT NULL` via the `NOT VALID` check-constraint route.
+
+Step 2 must land before step 3. If you backfill first, every row written between the backfill finishing and the write path deploying is left NULL, and step 4 then fails on data that looks correct.
 
 **Renaming or retyping a column.** Never rename in place:
 1. Add the new column. *Deploy.*

@@ -40,12 +40,12 @@ Rule of thumb: if you'd ever want to *graph* it or *alert* on it, it's a metric.
 
 ## Metrics
 
-**For request-driven services, use RED:** per endpoint/RPC method:
+**For request-driven services, use RED**, per endpoint or RPC method:
 - **Rate:** requests/sec
-- **Errors:** failed requests/sec, split by cause (client error vs. server error vs. timeout. They need different responses)
+- **Errors:** failed requests/sec, split by cause. Client error, server error, and timeout need different responses
 - **Duration:** a latency *histogram*, not an average
 
-**For resources, connection pools, queues, thread pools, caches. Use USE:**
+**For resources** (connection pools, queues, thread pools, caches) **use USE:**
 - **Utilization:** how full (pool in-use / capacity)
 - **Saturation:** the queue depth or wait time when it's full
 - **Errors:** acquisition timeouts, rejections, evictions
@@ -88,10 +88,10 @@ Follow OpenTelemetry semantic conventions rather than inventing attribute names,
 **Every log line carries correlation IDs:** `trace_id`, `span_id`, `request_id`, plus tenant/user where relevant. A log you can't tie back to a request is nearly useless during an incident. Put this in middleware once; don't rely on every call site remembering.
 
 **Levels, with actual meaning:**
-- `ERROR`, a human needs to look at this. If it fires routinely and nobody looks, it isn't an error, and it's training your team to ignore real ones.
-- `WARN`, degraded but handled; worth a graph, not a page.
-- `INFO`, significant state changes and request boundaries. Low volume.
-- `DEBUG`, off in production, toggleable per-request or per-component without redeploy.
+- `ERROR`: a human needs to look at this. If it fires routinely and nobody looks, it isn't an error, and it's training your team to ignore real ones.
+- `WARN`: degraded but handled. Worth a graph, not a page.
+- `INFO`: significant state changes and request boundaries. Low volume.
+- `DEBUG`: off in production, toggleable per-request or per-component without redeploy.
 
 **Log errors once, at the point where they're handled.** Logging at every level of the call stack as an error bubbles up produces five lines for one failure and makes error counts meaningless. Wrap with context on the way up (`fmt.Errorf("fetching user %s: %w", id, err)`), log at the top.
 

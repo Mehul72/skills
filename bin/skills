@@ -1,0 +1,200 @@
+#!/usr/bin/env bash
+# skills - install this agent skills library for every AI coding agent on the machine.
+#
+#   skills install          set up the global layer   (Claude Code, Codex, Gemini CLI)
+#   skills init [dir]       set up a repo             (Cursor, Copilot, Cline, Windsurf, ...)
+#   skills doctor           show what is installed where
+#   skills update           git pull, then re-run install
+#   skills list             list the skills
+#   skills uninstall        remove what install/init wrote
+#
+# Flags:  --link (default for install)  --copy  --dry-run  --force  NO_HOOK=1
+
+set -euo pipefail
+
+LIB="$(cd "$(dirname "$(dirname "${BASH_SOURCE[0]}")")" && pwd)"
+SRC="$LIB/skills"
+DRY=0; FORCE=0; MODE=link
+
+say()  { printf '  %s\n' "$*"; }
+ok()   { printf '  \033[32m+\033[0m %s\n' "$*"; }
+same() { printf '  \033[2m=\033[0m %s\n' "$*"; }
+warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
+run()  { [ "$DRY" = 1 ] && { printf '  \033[2m# %s\033[0m\n' "$*"; return 0; }; eval "$@"; }
+
+# place SRC DEST LABEL HINT - never clobbers a file that differs
+place() {
+  local src="$1" dst="$2" label="$3" hint="${4:-}"
+  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then same "$label"; return; fi
+  if [ -e "$dst" ]; then
+    if cmp -s "$src" "$dst" 2>/dev/null; then same "$label"; return; fi
+    if [ "$FORCE" = 1 ]; then run "rm -f '$dst'"
+    else
+      run "cp '$src' '$dst.from-skills-library'"
+      warn "$label exists and differs. Wrote $(basename "$dst").from-skills-library"
+      [ -n "$hint" ] && say "    $hint"
+      return
+    fi
+  fi
+  run "mkdir -p '$(dirname "$dst")'"
+  if [ "$MODE" = link ]; then run "ln -sf '$src' '$dst'"; else run "cp '$src' '$dst'"; fi
+  ok "$label"
+}
+
+# relink DEST_DIR - symlink every skill into DEST_DIR
+relink_skills() {
+  local dest="$1" n=0
+  run "mkdir -p '$dest'"
+  for d in "$SRC"/*/; do
+    [ -f "$d/SKILL.md" ] || continue
+    local name; name=$(basename "$d")
+    run "rm -rf '$dest/$name'"
+    if [ "$MODE" = link ]; then run "ln -s '${d%/}' '$dest/$name'"; else run "cp -R '$d' '$dest/$name'"; fi
+    n=$((n+1))
+  done
+  ok "$n skills -> $dest$([ "$MODE" = link ] && echo ' (symlinked)')"
+}
+
+# import_line FILE IMPORT LABEL - append an @import if not already present
+import_line() {
+  local file="$1" line="$2" label="$3"
+  if [ -f "$file" ] && grep -qF "$line" "$file"; then same "$label"; return; fi
+  if [ -f "$file" ]; then
+    run "printf '\n%s\n' '$line' >> '$file'"
+    ok "$label (appended import)"
+  else
+    run "mkdir -p '$(dirname "$file")'"
+    run "printf '%s\n' '$line' > '$file'"
+    ok "$label"
+  fi
+}
+
+cmd_install() {
+  echo "Global layer, applies to every repo on this machine."
+  echo
+
+  echo "Claude Code"
+  relink_skills "$HOME/.claude/skills"
+  import_line "$HOME/.claude/CLAUDE.md" "@$LIB/AGENTS.md" "~/.claude/CLAUDE.md"
+  if [ "${NO_HOOK:-0}" != 1 ]; then
+    if command -v python3 >/dev/null 2>&1; then
+      [ "$DRY" = 1 ] && say "# register UserPromptSubmit hook" || python3 - "$HOME/.claude/settings.json" "$LIB/hooks/inject-rules.sh" <<'PY'
+import json, os, sys
+p, cmd = sys.argv[1], sys.argv[2]
+try: cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
+except json.JSONDecodeError: print(f"  \033[33m!\033[0m {p} is not valid JSON, hook not registered"); sys.exit(0)
+ups = cfg.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
+if any(cmd in json.dumps(e) for e in ups): print("  \033[2m=\033[0m per-turn hook")
+else:
+    ups.append({"hooks": [{"type": "command", "command": cmd}]})
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    json.dump(cfg, open(p, "w"), indent=2); open(p, "a").write("\n")
+    print("  \033[32m+\033[0m per-turn hook -> ~/.claude/settings.json")
+PY
+    else warn "python3 not found, hook not registered"; fi
+  fi
+  echo
+
+  echo "Codex"
+  place "$LIB/AGENTS.md" "$HOME/.codex/AGENTS.md" "~/.codex/AGENTS.md" \
+        "merge the library's AGENTS.md into yours"
+  echo
+
+  echo "Gemini CLI"
+  import_line "$HOME/.gemini/GEMINI.md" "@$LIB/AGENTS.md" "~/.gemini/GEMINI.md"
+  echo
+
+  echo "Per-repo agents (Cursor, Copilot, Cline, Windsurf, Aider, Zed):"
+  say "these read a file from the repo root, not from \$HOME. In each repo run:"
+  say "    skills init"
+}
+
+cmd_init() {
+  local repo="${1:-$PWD}"
+  [ -d "$repo" ] || { echo "no such directory: $repo" >&2; exit 1; }
+  repo="$(cd "$repo" && pwd)"
+  echo "Repo layer -> $repo"
+  echo
+
+  # AGENTS.md is the canonical file; every other agent points at it.
+  local MODE_SAVED=$MODE; MODE=copy
+  place "$LIB/AGENTS.md" "$repo/AGENTS.md" "AGENTS.md  (Cursor, Codex, Windsurf, Aider, Zed, Jules, Amp)" \
+        "merge the library's AGENTS.md into yours"
+  MODE=$MODE_SAVED
+
+  # Claude Code reads CLAUDE.md only, so import AGENTS.md from it.
+  if [ -f "$repo/CLAUDE.md" ]; then
+    if grep -qF "@AGENTS.md" "$repo/CLAUDE.md"; then same "CLAUDE.md  (Claude Code)"
+    else warn "CLAUDE.md exists. Add this line to it:"; say "    @AGENTS.md"; fi
+  else
+    run "printf '@AGENTS.md\n' > '$repo/CLAUDE.md'"
+    ok "CLAUDE.md  (Claude Code)"
+  fi
+
+  # Agents that want their own filename: point them at AGENTS.md with a relative symlink.
+  link_alias() {  # $1 = path relative to repo, $2 = relative target, $3 = label
+    local dst="$repo/$1"
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$2" ]; then same "$1  ($3)"; return; fi
+    if [ -e "$dst" ]; then warn "$1 exists, left alone  ($3)"; return; fi
+    run "mkdir -p '$(dirname "$dst")'"
+    run "ln -s '$2' '$dst'"
+    ok "$1 -> $2  ($3)"
+  }
+  link_alias ".github/copilot-instructions.md" "../AGENTS.md" "GitHub Copilot"
+  link_alias ".clinerules"                     "AGENTS.md"    "Cline"
+  link_alias ".windsurfrules"                  "AGENTS.md"    "Windsurf"
+  link_alias "GEMINI.md"                       "AGENTS.md"    "Gemini CLI"
+  link_alias "CONVENTIONS.md"                  "AGENTS.md"    "Aider"
+  echo
+  say "Skills themselves are global. If you have not run 'skills install' yet, do that once."
+}
+
+cmd_doctor() {
+  echo "Library:  $LIB"
+  echo "Skills:   $(find "$SRC" -name SKILL.md | wc -l | tr -d ' ')"
+  echo
+  echo "Global"
+  local n; n=$(ls -1 "$HOME/.claude/skills" 2>/dev/null | wc -l | tr -d ' ')
+  [ "$n" -gt 0 ] && ok "~/.claude/skills  ($n entries)" || warn "~/.claude/skills  empty"
+  for f in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "$HOME/.gemini/GEMINI.md"; do
+    [ -e "$f" ] && ok "${f/#$HOME/~}" || warn "${f/#$HOME/~}  missing"
+  done
+  if [ -f "$HOME/.claude/settings.json" ] && grep -q inject-rules "$HOME/.claude/settings.json" 2>/dev/null
+    then ok "per-turn hook registered"; else warn "per-turn hook not registered"; fi
+  echo
+  echo "This repo ($PWD)"
+  for f in AGENTS.md CLAUDE.md .github/copilot-instructions.md .clinerules .windsurfrules GEMINI.md CONVENTIONS.md; do
+    [ -e "$f" ] && ok "$f" || warn "$f  missing"
+  done
+}
+
+cmd_uninstall() {
+  for d in "$SRC"/*/; do
+    local name; name=$(basename "$d")
+    [ -e "$HOME/.claude/skills/$name" ] || [ -L "$HOME/.claude/skills/$name" ] || continue
+    run "rm -rf '$HOME/.claude/skills/$name'"
+  done
+  ok "removed skills from ~/.claude/skills"
+  say "left alone: CLAUDE.md, AGENTS.md, GEMINI.md, settings.json, and repo files."
+  say "the import lines and the hook entry need removing by hand."
+}
+
+SUB="${1:-}"; [ $# -gt 0 ] && shift || true
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --dry-run) DRY=1 ;; --force) FORCE=1 ;; --copy) MODE=copy ;; --link) MODE=link ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+
+case "$SUB" in
+  install)   cmd_install ;;
+  init)      cmd_init "${ARGS[0]:-$PWD}" ;;
+  doctor)    cmd_doctor ;;
+  list)      "$LIB/install.sh" --list ;;
+  update)    git -C "$LIB" pull --ff-only && MODE=link cmd_install ;;
+  uninstall) cmd_uninstall ;;
+  ""|-h|--help) sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) echo "unknown command: $SUB" >&2; exit 1 ;;
+esac

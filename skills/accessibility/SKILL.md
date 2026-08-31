@@ -7,6 +7,8 @@ description: Build or review a UI so it works with a keyboard, a screen reader, 
 
 Most accessibility failures are not exotic. They're a `<div>` used as a button, an input with no label, and an error message only conveyed by turning the border red. Those three account for an enormous share of real-world problems, and all three are cheap to avoid while writing the code and expensive to retrofit.
 
+Not for: React component patterns (`react-review`) or page speed (`web-performance`), though a skeleton that shifts the layout is both an a11y and a CLS problem.
+
 Target **WCAG 2.2 level AA**, the current W3C Recommendation (2023, updated 2024), and the level named by most legal and procurement requirements. It's backwards compatible: meeting 2.2 means meeting 2.1 and 2.0.
 
 ## Step 1: Use the right element

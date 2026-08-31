@@ -5,15 +5,94 @@ in that repo picks them up.
 
 ## Install
 
+One command, on any machine:
+
 ```bash
-./install.sh /path/to/repo   # -> <repo>/.claude/skills
-./install.sh                 # install into the current directory
-./install.sh --list          # show what's available
+curl -fsSL https://raw.githubusercontent.com/<you>/skills/main/bootstrap.sh | bash
 ```
 
-Re-running replaces each skill in place, so it doubles as an update. Skills land in
-`.claude/skills/`, which Claude Code discovers automatically. For Cursor or another
-agent, point it at the same directory or symlink it.
+That clones the library, installs the global layer, and puts `skills` on your PATH.
+Private repo? Clone it yourself and run `./bootstrap.sh` from inside the clone; it
+detects that and skips the network.
+
+Then, once per repo you work in:
+
+```bash
+skills init
+```
+
+### Why two commands
+
+Agents split into two groups, and only one of them has a machine wide config.
+
+**Global, done once by `skills install`:**
+
+| Agent | Written to |
+|---|---|
+| Claude Code | `~/.claude/skills/` (25 symlinks), `~/.claude/CLAUDE.md`, `~/.claude/settings.json` |
+| Codex | `~/.codex/AGENTS.md` |
+| Gemini CLI | `~/.gemini/GEMINI.md` |
+
+**Per repo, done by `skills init`:** Cursor, Copilot, Cline, Windsurf, Aider, and Zed
+all read a file from the repo root and have no global equivalent. `skills init` writes
+`AGENTS.md` and points every one of them at it:
+
+```
+AGENTS.md                          the real file
+CLAUDE.md                          @AGENTS.md          Claude Code
+.github/copilot-instructions.md -> ../AGENTS.md        Copilot
+.clinerules                     -> AGENTS.md           Cline
+.windsurfrules                  -> AGENTS.md           Windsurf
+GEMINI.md                       -> AGENTS.md           Gemini CLI
+CONVENTIONS.md                  -> AGENTS.md           Aider
+```
+
+Relative symlinks, so the repo stays portable and one edit updates every agent.
+
+### Everything auto-updates
+
+Skills are symlinked into `~/.claude/skills/`, and the global instruction files import
+`AGENTS.md` from the clone by absolute path. So:
+
+```bash
+skills update      # git pull, then re-link
+```
+
+updates skills, rules, and the hook together. Claude Code also watches the skills
+directory, so edits land in a session you already have open.
+
+### Commands
+
+```bash
+skills install          global layer  (Claude Code, Codex, Gemini CLI)
+skills init [dir]       repo layer    (everything else)
+skills doctor           show what is installed where
+skills update           git pull, then re-install
+skills list             list the skills
+skills uninstall        remove the skills
+```
+
+Flags: `--dry-run` to see what it would do, `--copy` instead of symlinks, `--force` to
+overwrite, `NO_HOOK=1` to skip the per-turn hook.
+
+**Nothing is ever overwritten.** An existing `AGENTS.md`, `CLAUDE.md`, or agent rules
+file is left alone; the installer writes a `.from-skills-library` copy beside it and
+prints the one line you need to add. The hook is merged into `settings.json` without
+touching anything already configured.
+
+The lower level `./install.sh` is still there for a single repo install without the CLI.
+
+### Validate
+
+```bash
+./validate.sh
+```
+
+Checks frontmatter, name to directory match, cross references, and the em dash ban.
+Run it before committing. It exists because a markdown formatter that does not
+understand YAML frontmatter reads a closing `---` as a Setext heading underline and
+rewrites `name:` into `## name:`, which silently breaks skill discovery. If your
+editor formats markdown on save, exclude `skills/**/SKILL.md` or run this after.
 
 ### The always on layer
 
@@ -75,7 +154,7 @@ Grouped by when you'd reach for them.
 
 ```
 Deciding what to build ──→ grilling ──→ adr (the decision) ──→ backend-design-doc (the design)
-Writing it ─────────────→ unit-test-gen · observability
+Writing it ─────────────→ readable-code · unit-test-gen · observability
 Changing something live ─→ migration-safety (schema) · api-change-review (contract)
                            resilience-review (calls out) · safe-rollout (the deploy)
 Taking something away ───→ deprecation
@@ -97,6 +176,7 @@ Each skill's opening also says what it is *not* for, and routes to its sibling.
 | Skill | What it does |
 |---|---|
 | `unit-test-gen` | Generates, fixes, and maintains unit tests for Go, Python, Java, JS/TS, and C++. Routes between a single-agent "lite" flow and a multi-agent writer/fixer pipeline based on how many functions are in scope. Carries per-language conventions (naming, mocking, run commands) and a defect-severity taxonomy covering concurrency, data persistence, interface contracts, and security. |
+| `readable-code` | The standard for code a stranger can read in one pass. Names that state intent and carry their units, comments that explain why in plain English and never restate the line below, the happy path least indented, and error messages someone can act on. Corrects the specific direction generated code fails in: over commented and under named. |
 | `observability` | Adds or reviews logs, metrics, traces, and alerts. Structured-log discipline, RED/USE metric selection, OpenTelemetry span conventions, a cardinality budget that keeps a stray `user_id` label from taking down your metrics backend, and symptom-based alerting with burn-rate thresholds. |
 
 ### Changing things that are already live
@@ -209,8 +289,8 @@ Security Misconfiguration moved to second, SSRF folded into A01, and two categor
 new, Software Supply Chain Failures and Mishandling of Exceptional Conditions. That last
 one is why fail open error handling gets its own section.
 
-`handoff`, `response-style`, `orchestrator`, `code-quality`, and `code-simplification`
-were written here. The always on split between `AGENTS.md` and `CLAUDE.md` follows the
+`readable-code`, `handoff`, `response-style`, `orchestrator`, `code-quality`, and
+`code-simplification` were written here. The always on split between `AGENTS.md` and `CLAUDE.md` follows the
 [Claude Code memory docs](https://code.claude.com/docs/en/memory), which specify that
 Claude Code reads `CLAUDE.md` only and recommend the `@AGENTS.md` import to share one
 file across agents.

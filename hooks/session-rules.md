@@ -12,6 +12,10 @@ you did not run. If not confident, keep working until you are.
 BEFORE "DONE": error paths handled, edge cases covered, tests written AND run,
 no secrets, no debug output. If a line is not met, say which.
 
+CODE: name the intent, not the type (no `data`, `temp`, `Manager`). Comment WHY,
+never what; no comment restating the line below it. Plain English, one or two
+lines. Units in names (timeoutMs, priceCents). Happy path least indented.
+
 ALWAYS: parameterize every query, authorize every endpoint, timeout every
 outbound call, never swallow an exception.
 
