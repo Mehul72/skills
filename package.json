@@ -24,7 +24,7 @@
   },
   "scripts": {
     "postinstall": "node scripts/postinstall.mjs",
-    "test": "bash validate.sh"
+    "test": "bash validate.sh && bash test-install.sh"
   },
   "files": [
     "bin/",
@@ -35,6 +35,7 @@
     "CLAUDE.md",
     "bootstrap.sh",
     "install.sh",
+    "test-install.sh",
     "validate.sh"
   ],
   "engines": {

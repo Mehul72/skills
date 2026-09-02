@@ -106,8 +106,10 @@ if [ "$USER_MODE" = 1 ]; then
     printf '@%s/AGENTS.md\n' "$LIB_DIR" > "$BASE/CLAUDE.md"
     echo "  + ~/.claude/CLAUDE.md (imports $LIB_DIR/AGENTS.md)"
   fi
-  echo "  i AGENTS.md is per-repo for Cursor and Codex. Copy it into each work repo:"
-  echo "      cp $LIB_DIR/AGENTS.md <repo>/AGENTS.md"
+  echo "  i This installer only covers Claude Code. For Codex, Gemini CLI, and the"
+  echo "    per-repo agents (Cursor, Copilot, Cline, Windsurf), use the launcher:"
+  echo "      $LIB_DIR/bin/skills install     # global layer, every agent"
+  echo "      $LIB_DIR/bin/skills init <repo> # per-repo files"
 else
   place "$LIB_DIR/AGENTS.md" "$TARGET/AGENTS.md" \
     "merge it into your existing AGENTS.md"

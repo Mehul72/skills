@@ -41,6 +41,8 @@ Read the request and answer three questions.
 | React components | `react-review` |
 | Keyboard, screen reader, WCAG | `accessibility` |
 | Handling user input, auth, secrets, config | `security-hardening` |
+| Audit an existing repo, sweep for secrets, threat model | `security-audit` |
+| Write or fix a README, runbook, or API docs | `documentation` |
 | Naming, comments, code that is hard to follow | `readable-code` |
 | Review a diff, or decide whether it is ready | `code-quality` |
 | Clean up working code | `code-simplification` |
@@ -62,6 +64,7 @@ grilling (if the approach is unsettled)
   → unit-test-gen        (tests, run them)
   → observability        (can we see it working)
   → code-quality         (the bar, before saying done)
+  → documentation        (only what the change made wrong)
 ```
 
 **Changing something already live**
@@ -126,6 +129,8 @@ Pull in a skill that was not in the original plan when any of these appear mid t
 | A new `http`, `rpc`, or client call appears | `resilience-review` |
 | User input reaches a query, a shell, or a template | `security-hardening` |
 | A credential, key, or token appears in a diff | `security-hardening`, and stop |
+| A secret is found in git history, not just the diff | `security-audit`, sweep and rotate |
+| A renamed flag, env var, or endpoint is documented somewhere | `documentation` |
 | An error path is being written | `code-quality`, error handling section |
 | The diff is much larger than the problem | `code-simplification` |
 | You cannot explain why a fix works | `systematic-debugging` |

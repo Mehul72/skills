@@ -34,6 +34,9 @@ run()  { [ "$DRY" = 1 ] && { printf '  \033[2m# %s\033[0m\n' "$*"; return 0; }; 
 place() {
   local src="$1" dst="$2" label="$3" hint="${4:-}"
   if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then same "$label"; return; fi
+  # Agents touch an empty config file on first run. There is nothing in it to keep, so
+  # overwrite it rather than parking a .from-skills-library nobody reads.
+  if [ -e "$dst" ] && [ ! -L "$dst" ] && [ ! -s "$dst" ]; then run "rm -f '$dst'"; fi
   if [ -e "$dst" ]; then
     if cmp -s "$src" "$dst" 2>/dev/null; then same "$label"; return; fi
     if [ "$FORCE" = 1 ]; then run "rm -f '$dst'"
@@ -106,6 +109,9 @@ PY
   echo
 
   echo "Codex"
+  # Same layout and frontmatter as Claude Code: ~/.codex/skills/<name>/SKILL.md.
+  # Codex's own bundled skills sit under .system/, which relink_skills never touches.
+  relink_skills "$HOME/.codex/skills"
   place "$LIB/AGENTS.md" "$HOME/.codex/AGENTS.md" "~/.codex/AGENTS.md" \
         "merge the library's AGENTS.md into yours"
   echo
@@ -117,6 +123,38 @@ PY
   echo "Per-repo agents (Cursor, Copilot, Cline, Windsurf, Aider, Zed):"
   say "these read a file from the repo root, not from \$HOME. In each repo run:"
   say "    skills init"
+  echo
+  link_launcher
+}
+
+# `skills init` is the next thing every install tells the user to run, so install has
+# to leave a launcher they can actually type. bootstrap.sh and the npm handoff each
+# link one, but `bash bin/skills install` straight from a clone linked nothing.
+link_launcher() {
+  local bin_dir="${SKILLS_BIN:-$HOME/.local/bin}"
+  local dst="$bin_dir/skills"
+  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$LIB/bin/skills" ]; then
+    same "launcher  ($dst)"
+  else
+    run "mkdir -p '$bin_dir'"
+    run "ln -sf '$LIB/bin/skills' '$dst'"
+    ok "launcher -> $dst"
+  fi
+  check_on_path
+}
+
+# Whether `skills` will resolve in the user's next shell, which is not the same
+# question as whether it resolves right now: npx prepends a cache directory that is
+# deleted when the command ends, so a hit there is a launcher that will not exist.
+check_on_path() {
+  local bin_dir="${SKILLS_BIN:-$HOME/.local/bin}"
+  case ":$PATH:" in *":$bin_dir:"*) same "$bin_dir is on your PATH"; return ;; esac
+  local found; found="$(command -v skills 2>/dev/null || true)"
+  case "$found" in */_npx/*|*/node_modules/.bin/*) found="" ;; esac
+  if [ -n "$found" ]; then same "skills resolves to $found"; return; fi
+  warn "$bin_dir is not on your PATH, so 'skills init' will not resolve yet:"
+  say "    echo 'export PATH=\"$bin_dir:\$PATH\"' >> ~/.zshrc && exec zsh"
+  say "    bash, not zsh? use ~/.bashrc and 'exec bash'"
 }
 
 # exclude_from_git REPO - keep the files init writes out of `git status`.
@@ -172,6 +210,21 @@ exclude_from_git() {
   if [ -n "$tracked" ]; then say "tracked already, left visible:$tracked"; fi
 }
 
+# Where the checksum of the AGENTS.md init last wrote is kept. Beside .git/info/exclude
+# for the same reason: local to one clone, never committed, invisible to a teammate.
+init_stamp() {
+  local common
+  common=$(git -C "$1" rev-parse --git-common-dir 2>/dev/null) || return 1
+  case "$common" in /*) ;; *) common="$1/$common" ;; esac
+  printf '%s' "$common/info/skills-init.sha"
+}
+
+sha_of() {
+  if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
+  elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  fi
+}
+
 cmd_init() {
   local repo="${1:-$PWD}"
   [ -d "$repo" ] || { echo "no such directory: $repo" >&2; exit 1; }
@@ -179,11 +232,27 @@ cmd_init() {
   echo "Repo layer -> $repo"
   echo
 
+  # A copy init wrote that nobody has since edited is safe to refresh. Without this,
+  # place() cannot tell its own stale output from something the user wrote, so every
+  # repo set up before a library update stays on the old rules for good.
+  local stamp; stamp="$(init_stamp "$repo" || true)"
+  if [ -n "$stamp" ] && [ -f "$stamp" ] && [ -f "$repo/AGENTS.md" ] \
+     && [ "$(sha_of "$repo/AGENTS.md")" = "$(cat "$stamp")" ] \
+     && ! cmp -s "$LIB/AGENTS.md" "$repo/AGENTS.md"; then
+    run "rm -f '$repo/AGENTS.md'"
+    say "AGENTS.md was unedited since init wrote it, so refreshing it"
+  fi
+
   # AGENTS.md is the canonical file; every other agent points at it.
   local MODE_SAVED=$MODE; MODE=copy
   place "$LIB/AGENTS.md" "$repo/AGENTS.md" "AGENTS.md  (Cursor, Codex, Windsurf, Aider, Zed, Jules, Amp)" \
-        "merge the library's AGENTS.md into yours"
+        "merge the library's AGENTS.md into yours, or re-run with --force to overwrite"
   MODE=$MODE_SAVED
+
+  # Only stamp a file that matches the library, so a user edit is never recorded as ours.
+  if [ -n "$stamp" ] && [ "$DRY" != 1 ] && cmp -s "$LIB/AGENTS.md" "$repo/AGENTS.md" 2>/dev/null; then
+    mkdir -p "$(dirname "$stamp")" && sha_of "$repo/AGENTS.md" > "$stamp"
+  fi
 
   # Claude Code reads CLAUDE.md only, so import AGENTS.md from it.
   if [ -f "$repo/CLAUDE.md" ]; then
@@ -219,13 +288,20 @@ cmd_doctor() {
   echo "Skills:   $(find "$SRC" -name SKILL.md | wc -l | tr -d ' ')"
   echo
   echo "Global"
-  local n; n=$(ls -1 "$HOME/.claude/skills" 2>/dev/null | wc -l | tr -d ' ')
-  [ "$n" -gt 0 ] && ok "~/.claude/skills  ($n entries)" || warn "~/.claude/skills  empty"
+  local dir n
+  for dir in "$HOME/.claude/skills" "$HOME/.codex/skills"; do
+    n=$(ls -1 "$dir" 2>/dev/null | wc -l | tr -d ' ')
+    [ "$n" -gt 0 ] && ok "${dir/#$HOME/~}  ($n entries)" || warn "${dir/#$HOME/~}  empty"
+  done
   for f in "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "$HOME/.gemini/GEMINI.md"; do
     [ -e "$f" ] && ok "${f/#$HOME/~}" || warn "${f/#$HOME/~}  missing"
   done
   if [ -f "$HOME/.claude/settings.json" ] && grep -q inject-rules "$HOME/.claude/settings.json" 2>/dev/null
     then ok "per-turn hook registered"; else warn "per-turn hook not registered"; fi
+  local launcher="${SKILLS_BIN:-$HOME/.local/bin}/skills"
+  if [ -e "$launcher" ]; then ok "launcher -> $(readlink "$launcher" 2>/dev/null || echo "$launcher")"
+  else warn "${launcher/#$HOME/~}  missing"; fi
+  check_on_path
   echo
   echo "This repo ($PWD)"
   for f in AGENTS.md CLAUDE.md .github/copilot-instructions.md .clinerules .windsurfrules GEMINI.md CONVENTIONS.md; do
@@ -234,12 +310,15 @@ cmd_doctor() {
 }
 
 cmd_uninstall() {
-  for d in "$SRC"/*/; do
-    local name; name=$(basename "$d")
-    [ -e "$HOME/.claude/skills/$name" ] || [ -L "$HOME/.claude/skills/$name" ] || continue
-    run "rm -rf '$HOME/.claude/skills/$name'"
+  local dest name
+  for dest in "$HOME/.claude/skills" "$HOME/.codex/skills"; do
+    for d in "$SRC"/*/; do
+      name=$(basename "$d")
+      [ -e "$dest/$name" ] || [ -L "$dest/$name" ] || continue
+      run "rm -rf '$dest/$name'"
+    done
+    ok "removed skills from ${dest/#$HOME/~}"
   done
-  ok "removed skills from ~/.claude/skills"
   say "left alone: CLAUDE.md, AGENTS.md, GEMINI.md, settings.json, and repo files."
   say "the import lines and the hook entry need removing by hand."
 }
@@ -272,7 +351,8 @@ materialize() {
   chmod +x "$HOME_DIR/bin/skills" "$HOME_DIR"/*.sh "$HOME_DIR"/hooks/*.sh 2>/dev/null || true
   # Marker: `skills update` cannot git pull a copy, it has to go back through npm.
   printf '%s\n' "$LIB" > "$HOME_DIR/.installed-by-npm"
-  mkdir -p "$HOME/.local/bin" && ln -sf "$HOME_DIR/bin/skills" "$HOME/.local/bin/skills"
+  local bin_dir="${SKILLS_BIN:-$HOME/.local/bin}"
+  mkdir -p "$bin_dir" && ln -sf "$HOME_DIR/bin/skills" "$bin_dir/skills"
 }
 
 SUB="${1:-}"; [ $# -gt 0 ] && shift || true

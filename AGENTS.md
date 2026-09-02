@@ -2,7 +2,11 @@
 
 Read this before responding to anything. It applies to every request.
 
-Full detail lives in `.claude/skills/`. This file is the always loaded index.
+Full detail lives in the installed skills. Load one by name through your agent's own
+skill mechanism (Claude Code: the Skill tool. Codex: skills are auto-discovered).
+Do not go looking for the files. If your agent has no skill mechanism, they are on
+disk at `~/.claude/skills/<name>/SKILL.md` and `~/.codex/skills/<name>/SKILL.md`.
+This file is the always loaded index.
 
 ## Output rules
 
@@ -66,6 +70,8 @@ Name the skills you are using in one line before starting. Load them; do not wor
 | React components | `react-review` |
 | Keyboard, screen reader, WCAG | `accessibility` |
 | User input, auth, secrets, config | `security-hardening` |
+| Audit a repo for security problems already in it | `security-audit` |
+| README, runbook, or docs a change made wrong | `documentation` |
 | Naming, comments, making code readable | `readable-code` |
 | Review a diff | `code-quality` |
 | Clean up working code | `code-simplification` |
@@ -84,6 +90,8 @@ Pull these in mid task when they appear, even if not in the original plan.
 | A new HTTP or RPC client call | `resilience-review` |
 | User input reaching a query, shell, or template | `security-hardening` |
 | A credential or key in a diff | `security-hardening`, and stop |
+| A secret that reached a commit | `security-audit`, sweep the history, rotate |
+| A change that makes a runbook or README wrong | `documentation` |
 | The diff is much larger than the problem | `code-simplification` |
 | You cannot explain why a fix works | `systematic-debugging` |
 

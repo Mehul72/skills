@@ -80,9 +80,16 @@ Agents split into two groups, and only one of them has a machine wide config.
 
 | Agent | Written to |
 |---|---|
-| Claude Code | `~/.claude/skills/` (25 symlinks), `~/.claude/CLAUDE.md`, `~/.claude/settings.json` |
-| Codex | `~/.codex/AGENTS.md` |
+| Claude Code | `~/.claude/skills/` (one symlink per skill), `~/.claude/CLAUDE.md`, `~/.claude/settings.json` |
+| Codex | `~/.codex/skills/` (one symlink per skill), `~/.codex/AGENTS.md` |
 | Gemini CLI | `~/.gemini/GEMINI.md` |
+| The `skills` launcher | `~/.local/bin/skills`, or `$SKILLS_BIN` |
+
+Claude Code and Codex use the same skill format, `<name>/SKILL.md` with `name` and
+`description` frontmatter, so one directory of skills feeds both. Codex keeps its own
+bundled skills in `~/.codex/skills/.system/`, which the installer never touches.
+
+Gemini CLI has no skills directory, so it gets the always on `AGENTS.md` layer only.
 
 **Per repo, done by `skills init`:** Cursor, Copilot, Cline, Windsurf, Aider, and Zed
 all read a file from the repo root and have no global equivalent. `skills init` writes
@@ -177,12 +184,24 @@ enough for rules that must apply to every reply, so the installer also writes tw
 to the repo root:
 
 - **`AGENTS.md`** carries the output rules, the confidence rules, the production bar, and
-  the skill routing table. Cursor and Codex read it directly.
+  the skill routing table. Cursor and Codex read it directly. It names each skill and
+  tells the agent to load it through its own skill mechanism. It deliberately does not
+  give a path to go read, because a path that is right for one agent is wrong for the
+  next, and an agent handed a stale one reports the skill as missing.
 - **`CLAUDE.md`** is one line, `@AGENTS.md`, plus a few Claude specific notes. Claude Code
   reads `CLAUDE.md` and not `AGENTS.md`, so the import is what connects them.
 
 Neither is ever overwritten. If you already have one, the installer writes
 `AGENTS.md.from-skills-library` beside it and tells you what to merge.
+
+Re-running `skills init` after the library changes does update the repo's `AGENTS.md`,
+but only when you have not touched it. `init` records a checksum of what it wrote in
+`.git/info/skills-init.sha`, local to the clone and never committed. On the next run a
+copy that still matches that checksum is refreshed in place; one that does not is
+treated as yours and left alone. `--force` overwrites either way.
+
+A repo set up before this existed has no checksum on file, so its first re-init still
+parks a `.from-skills-library`. Diff the two, then take the update with `--force`.
 
 #### Agent coverage
 
@@ -241,6 +260,8 @@ Frontend ───────────────→ frontend-data-fetching
                           accessibility · web-performance
 
 Before calling it done ──→ security-hardening · code-quality · code-simplification
+Auditing what exists ───→ security-audit (secrets in history, deps, CI/CD)
+Writing it down ────────→ documentation (runbooks, and what a change made false)
 Every reply ────────────→ response-style        Routing itself ──→ orchestrator
 Out of context ─────────→ handoff (summarise, then open a fresh window)
 ```
@@ -306,6 +327,8 @@ the diff exists, which is where the built in `/code-review`, `/security-review`,
 | `security-hardening` | The OWASP Top 10:2025, weighted toward what generated code actually gets wrong: authorization omitted because nobody asked for it, SQL built by concatenation, errors that fail open, secrets in source. Ships a per language checklist and the one authorization test that catches most IDOR. |
 | `code-quality` | A production ready checklist you must pass before reporting work complete, then a review ordered by cost of being wrong: correctness, error handling, concurrency, tests, interfaces, operability, and clarity last. Requires you to say what you actually ran rather than implying it. |
 | `code-simplification` | Reduces working code without changing behavior. Deletes speculative abstraction, dead code, redundant state, and guards against impossible states. Holds the line that duplication is cheaper than the wrong abstraction, so fold on the third occurrence and not the second. |
+| `security-audit` | The other half of `security-hardening`: not the change about to land, but what is already wrong. Sweeps git history for credentials that were deleted but never rotated, checks dependency supply chain past `npm audit`, and audits the CI/CD pipeline that holds every deploy secret. Most of it is the filter, because an audit reporting forty issues gets shelved and six get fixed. |
+| `documentation` | Picks the right kind of document, then finds what the last change made false. Covers the runbook someone follows at 3am, the drift audit that maps a diff onto the docs it just invalidated, and what not to write, since every document is a maintenance liability. A wrong document is worse than a missing one, because a missing one sends you to the source. |
 
 ### How the agent works and writes
 
@@ -364,6 +387,12 @@ confirmed against owasp.org rather than recalled: Broken Access Control still le
 Security Misconfiguration moved to second, SSRF folded into A01, and two categories are
 new, Software Supply Chain Failures and Mishandling of Exceptional Conditions. That last
 one is why fail open error handling gets its own section.
+
+`security-audit` and `documentation` were written here, adapting two ideas from
+[gstack](https://github.com/garrytan/gstack) by Garry Tan (MIT): its confidence gating
+and false positive filtering for security findings, and its post ship documentation
+drift audit. The four document kinds follow the
+[Diataxis](https://diataxis.fr/) framework by Daniele Procida.
 
 `readable-code`, `handoff`, `response-style`, `orchestrator`, `code-quality`, and
 `code-simplification` were written here. The always on split between `AGENTS.md` and `CLAUDE.md` follows the
