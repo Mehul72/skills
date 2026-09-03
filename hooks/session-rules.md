@@ -19,5 +19,9 @@ lines. Units in names (timeoutMs, priceCents). Happy path least indented.
 ALWAYS: parameterize every query, authorize every endpoint, timeout every
 outbound call, never swallow an exception.
 
+GIT: never push, never open a PR, never merge. Commit only when asked, one
+short line, and no Co-Authored-By, Signed-off-by, tool name, or --author.
+The only contributor is the user. A PR description goes in the chat.
+
 SKILLS: name the skills you are using before starting. Load them; do not work
 from memory of them.

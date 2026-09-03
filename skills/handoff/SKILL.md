@@ -1,6 +1,11 @@
 ---
 name: handoff
-description: Summarise the current session into a handoff document so a fresh agent window can continue without losing context. Captures per topic state, decisions and why, requirement changes, and corrections the user made, so mistakes are not repeated. Defaults to an agent optimised long form; pass "human" for a readable narrative. Use when asked to summarise the chat, hand off, start a new window, compact the session, or write context for the next agent.
+description: >-
+  Summarise the current session into a handoff document so a fresh agent window can continue
+  without losing context. Captures per topic state, decisions and why, requirement changes,
+  and corrections the user made, so mistakes are not repeated. Defaults to an agent optimised
+  long form; pass "human" for a readable narrative. Use when asked to summarise the chat, hand
+  off, start a new window, compact the session, or write context for the next agent.
 ---
 
 # Handoff

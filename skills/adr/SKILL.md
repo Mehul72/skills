@@ -1,6 +1,10 @@
 ---
 name: adr
-description: Write an Architecture Decision Record capturing why a technical decision was made, what was rejected, and what would reverse it. Use when choosing a framework, datastore, protocol, or vendor, when making a decision that is expensive to reverse, when the same design argument keeps getting relitigated, or when asked for an ADR or decision doc.
+description: >-
+  Write an Architecture Decision Record capturing why a technical decision was made, what was
+  rejected, and what would reverse it. Use when choosing a framework, datastore, protocol, or
+  vendor, when making a decision that is expensive to reverse, when the same design argument
+  keeps getting relitigated, or when asked for an ADR or decision doc.
 ---
 
 # Architecture Decision Records

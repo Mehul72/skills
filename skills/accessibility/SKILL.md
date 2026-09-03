@@ -1,6 +1,11 @@
 ---
 name: accessibility
-description: Build or review a UI so it works with a keyboard, a screen reader, and low vision: semantic HTML, focus management, labelled forms, accessible errors, contrast, and live regions, against WCAG 2.2 AA. Use when building forms, modals, menus, tables, or custom interactive widgets, when reviewing UI for a11y, or on any mention of accessibility, a11y, ARIA, keyboard navigation, screen readers, or WCAG.
+description: >-
+  Build or review a UI so it works with a keyboard, a screen reader, and low vision: semantic
+  HTML, focus management, labelled forms, accessible errors, contrast, and live regions,
+  against WCAG 2.2 AA. Use when building forms, modals, menus, tables, or custom interactive
+  widgets, when reviewing UI for a11y, or on any mention of accessibility, a11y, ARIA,
+  keyboard navigation, screen readers, or WCAG.
 ---
 
 # Accessibility

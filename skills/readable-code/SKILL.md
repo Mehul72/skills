@@ -1,6 +1,11 @@
 ---
 name: readable-code
-description: Write code a stranger can read in one pass: names that state intent, short comments that explain why in plain English, shallow control flow, and error messages people can act on. Use when writing or reviewing any code, when naming things, when adding comments or docstrings, when a function is hard to follow, or when asked to make code clearer or more maintainable.
+description: >-
+  Write code a stranger can read in one pass: names that state intent, short comments that
+  explain why in plain English, shallow control flow, and error messages people can act on.
+  Use when writing or reviewing any code, when naming things, when adding comments or
+  docstrings, when a function is hard to follow, or when asked to make code clearer or more
+  maintainable.
 ---
 
 # Readable Code

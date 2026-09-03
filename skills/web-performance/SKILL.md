@@ -1,6 +1,11 @@
 ---
 name: web-performance
-description: Diagnose and fix a slow web page against Core Web Vitals (LCP, INP, CLS) using field data first, then a profile. Covers the LCP subpart breakdown, long-task and main-thread work behind INP, layout-shift causes, and bundle discipline. Use when a page feels slow, when Lighthouse or Search Console flags Core Web Vitals, when reviewing a frontend change for performance, or on any mention of bundle size, LCP, INP, CLS, or render blocking.
+description: >-
+  Diagnose and fix a slow web page against Core Web Vitals (LCP, INP, CLS) using field data
+  first, then a profile. Covers the LCP subpart breakdown, long-task and main-thread work
+  behind INP, layout-shift causes, and bundle discipline. Use when a page feels slow, when
+  Lighthouse or Search Console flags Core Web Vitals, when reviewing a frontend change for
+  performance, or on any mention of bundle size, LCP, INP, CLS, or render blocking.
 ---
 
 # Web Performance

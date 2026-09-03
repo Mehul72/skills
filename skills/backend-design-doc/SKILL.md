@@ -1,6 +1,11 @@
 ---
 name: backend-design-doc
-description: Write a backend technical design document (TDD) for a feature: business background, requirement analysis, system design, and per-interface core changes, with rigorous Mermaid flowcharts, architecture, sequence, ER, and state diagrams. Use when asked for a tech design, design doc, TDD, architecture write-up, or diagrams for a backend change; also use its diagram standards when adding Mermaid to any doc.
+description: >-
+  Write a backend technical design document (TDD) for a feature: business background,
+  requirement analysis, system design, and per-interface core changes, with rigorous Mermaid
+  flowcharts, architecture, sequence, ER, and state diagrams. Use when asked for a tech
+  design, design doc, TDD, architecture write-up, or diagrams for a backend change; also use
+  its diagram standards when adding Mermaid to any doc.
 ---
 
 # Backend Technical Design Document

@@ -1,6 +1,12 @@
 ---
 name: security-hardening
-description: Harden code against the OWASP Top 10 2025 before it ships, and review existing code for the vulnerability classes that generated code most often gets wrong. Covers missing authorization, injection, secrets handling, misconfiguration, dependency risk, and fail-open error handling. Use when writing or reviewing an endpoint, auth logic, a query, file upload, deserialization, or config; when handling user input or secrets; or on any mention of security, vulnerability, injection, authz, or hardening.
+description: >-
+  Harden code against the OWASP Top 10 2025 before it ships, and review existing code for the
+  vulnerability classes that generated code most often gets wrong. Covers missing
+  authorization, injection, secrets handling, misconfiguration, dependency risk, and fail-open
+  error handling. Use when writing or reviewing an endpoint, auth logic, a query, file upload,
+  deserialization, or config; when handling user input or secrets; or on any mention of
+  security, vulnerability, injection, authz, or hardening.
 ---
 
 # Security Hardening

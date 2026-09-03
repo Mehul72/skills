@@ -1,6 +1,11 @@
 ---
 name: frontend-data-fetching
-description: Wire a UI to a backend API correctly: request waterfalls, race conditions, the four UI states, caching server state, optimistic updates with rollback, pagination, and cancellation. Use when building or reviewing any component that calls an API, when data appears stale or flickers, when a list is slow to load, or on any mention of useEffect fetching, SWR, TanStack Query, loading states, or optimistic UI.
+description: >-
+  Wire a UI to a backend API correctly: request waterfalls, race conditions, the four UI
+  states, caching server state, optimistic updates with rollback, pagination, and
+  cancellation. Use when building or reviewing any component that calls an API, when data
+  appears stale or flickers, when a list is slow to load, or on any mention of useEffect
+  fetching, SWR, TanStack Query, loading states, or optimistic UI.
 ---
 
 # Frontend Data Fetching

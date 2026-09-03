@@ -1,6 +1,10 @@
 ---
 name: sql-performance
-description: Diagnose and fix a slow query, design the right index for it, or review ORM-generated SQL before it ships. Use when a query or endpoint is slow, when a database is showing high CPU or lock waits, when reviewing a new query or index, or on any mention of EXPLAIN, query plan, full table scan, N+1, missing index, or slow query log.
+description: >-
+  Diagnose and fix a slow query, design the right index for it, or review ORM-generated SQL
+  before it ships. Use when a query or endpoint is slow, when a database is showing high CPU
+  or lock waits, when reviewing a new query or index, or on any mention of EXPLAIN, query
+  plan, full table scan, N+1, missing index, or slow query log.
 ---
 
 # SQL Performance

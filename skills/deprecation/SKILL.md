@@ -1,6 +1,11 @@
 ---
 name: deprecation
-description: Retire an API, endpoint, service, table, or feature without breaking the people still using it: usage measurement, advisory vs. compulsory sunset, migration tooling, and the removal gate. Use when removing or replacing an existing system, sunsetting an endpoint or feature, consolidating duplicate implementations, deleting code nobody seems to own, or deciding whether to maintain or kill a legacy system.
+description: >-
+  Retire an API, endpoint, service, table, or feature without breaking the people still using
+  it: usage measurement, advisory vs. compulsory sunset, migration tooling, and the removal
+  gate. Use when removing or replacing an existing system, sunsetting an endpoint or feature,
+  consolidating duplicate implementations, deleting code nobody seems to own, or deciding
+  whether to maintain or kill a legacy system.
 ---
 
 # Deprecation

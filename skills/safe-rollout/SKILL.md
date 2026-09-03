@@ -1,6 +1,11 @@
 ---
 name: safe-rollout
-description: Plan and execute a production rollout so a bad change is caught early and reversed cheaply: feature flags, shadow traffic, canary and staged percentages, advance/hold/rollback thresholds, and a written rollback plan. Use when deploying a risky change, planning a launch or staged rollout, setting up a feature flag, or when asked for a rollback or cutover plan.
+description: >-
+  Plan and execute a production rollout so a bad change is caught early and reversed cheaply:
+  feature flags, shadow traffic, canary and staged percentages, advance/hold/rollback
+  thresholds, and a written rollback plan. Use when deploying a risky change, planning a
+  launch or staged rollout, setting up a feature flag, or when asked for a rollback or cutover
+  plan.
 ---
 
 # Safe Rollout

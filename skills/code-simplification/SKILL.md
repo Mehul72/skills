@@ -1,6 +1,11 @@
 ---
 name: code-simplification
-description: Reduce working code to its simplest correct form without changing behavior. Removes speculative abstraction, dead code, redundant state, and defensive noise, and folds duplication that has earned it. Use after a feature works but before it ships, when a file has grown hard to follow, when reviewing a diff that looks larger than the problem, or when asked to clean up, refactor, or simplify.
+description: >-
+  Reduce working code to its simplest correct form without changing behavior. Removes
+  speculative abstraction, dead code, redundant state, and defensive noise, and folds
+  duplication that has earned it. Use after a feature works but before it ships, when a file
+  has grown hard to follow, when reviewing a diff that looks larger than the problem, or when
+  asked to clean up, refactor, or simplify.
 ---
 
 # Code Simplification

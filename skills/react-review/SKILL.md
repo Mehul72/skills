@@ -1,6 +1,11 @@
 ---
 name: react-review
-description: Write or review React components against the patterns that actually cause bugs: unnecessary effects, derived state, stale closures, key misuse, re-render cascades, and premature memoization. Use when writing or reviewing React/Next.js components, when a component re-renders too often or shows stale data, when an effect loops, or on any mention of useEffect, useMemo, memo, state management, or Server Components.
+description: >-
+  Write or review React components against the patterns that actually cause bugs: unnecessary
+  effects, derived state, stale closures, key misuse, re-render cascades, and premature
+  memoization. Use when writing or reviewing React/Next.js components, when a component
+  re-renders too often or shows stale data, when an effect loops, or on any mention of
+  useEffect, useMemo, memo, state management, or Server Components.
 ---
 
 # React Review

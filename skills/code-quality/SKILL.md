@@ -1,6 +1,10 @@
 ---
 name: code-quality
-description: Hold code to a production ready bar before calling it done, and review a diff against correctness, error handling, tests, security, and operability. Use before saying work is complete, when reviewing a diff or PR, when a change touches error paths or concurrency, or when asked whether code is ready to ship.
+description: >-
+  Hold code to a production ready bar before calling it done, and review a diff against
+  correctness, error handling, tests, security, and operability. Use before saying work is
+  complete, when reviewing a diff or PR, when a change touches error paths or concurrency, or
+  when asked whether code is ready to ship.
 ---
 
 # Code Quality

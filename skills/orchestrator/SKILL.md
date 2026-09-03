@@ -1,6 +1,10 @@
 ---
 name: orchestrator
-description: Route a request to the right skills in this library and sequence them. Reads the request, names which skills apply, loads them, and orders the work. Use at the start of any non trivial task, when a request spans several areas, when unsure which skill fits, or when asked which skills apply.
+description: >-
+  Route a request to the right skills in this library and sequence them. Reads the request,
+  names which skills apply, loads them, and orders the work. Use at the start of any non
+  trivial task, when a request spans several areas, when unsure which skill fits, or when
+  asked which skills apply.
 ---
 
 # Orchestrator
@@ -25,6 +29,7 @@ Read the request and answer three questions.
 |---|---|
 | Decide between approaches, stress test a plan | `grilling`, then `adr` for the record |
 | Design a feature, write a tech design | `backend-design-doc` |
+| Sequence multi step work, or work longer than one sitting | `implementation-plan` |
 | Record why a decision was made | `adr` |
 | Write or fix tests | `unit-test-gen` |
 | Add logs, metrics, traces, alerts | `observability` |
@@ -46,6 +51,8 @@ Read the request and answer three questions.
 | Naming, comments, code that is hard to follow | `readable-code` |
 | Review a diff, or decide whether it is ready | `code-quality` |
 | Clean up working code | `code-simplification` |
+| Commit, write a PR description, respond to review | `git-workflow` |
+| Build pipeline, required checks, flaky tests, red main | `ci-cd` |
 | Any output the user reads | `response-style` (always) |
 | Summarise the chat for a new agent window | `handoff` |
 
@@ -59,12 +66,14 @@ Order matters. Some skills gate others.
 ```
 grilling (if the approach is unsettled)
   → backend-design-doc or adr (if worth recording)
+  → implementation-plan  (if it outlives one sitting; write the file before the first edit)
   → write the code       (readable-code applies while writing, not after)
   → security-hardening   (input, auth, secrets)
   → unit-test-gen        (tests, run them)
   → observability        (can we see it working)
   → code-quality         (the bar, before saying done)
   → documentation        (only what the change made wrong)
+  → git-workflow         (commits, PR, review, merge)
 ```
 
 **Changing something already live**
@@ -97,6 +106,8 @@ Rules for sequencing:
 - **Security and tests before "done"**, never after.
 - **Contract and schema review before the rollout plan**, because they change the deploy order.
 - **Simplification after it works**, never during.
+- **The plan file before the first edit**, not after the work has already sprawled.
+- **CI green before merge**, and green because the checks ran, not because they were skipped.
 
 ## Step 4: Announce
 
@@ -133,6 +144,9 @@ Pull in a skill that was not in the original plan when any of these appear mid t
 | A renamed flag, env var, or endpoint is documented somewhere | `documentation` |
 | An error path is being written | `code-quality`, error handling section |
 | The diff is much larger than the problem | `code-simplification` |
+| A workflow or pipeline file changes, or CI fails on a re-run | `ci-cd` |
+| The work spans more files or sessions than you can hold | `implementation-plan` |
+| A commit is about to be made, or a PR description is asked for | `git-workflow` |
 | You cannot explain why a fix works | `systematic-debugging` |
 
 ## When no skill applies

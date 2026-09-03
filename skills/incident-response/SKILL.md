@@ -1,6 +1,10 @@
 ---
 name: incident-response
-description: Drive a production incident: triage severity, mitigate first, then diagnose, communicate, and write a blameless postmortem with real action items. Use during or after an outage, elevated error rates, a latency regression, a bad deploy, or when on-call and paged; also use for writing the postmortem/RCA afterwards.
+description: >-
+  Drive a production incident: triage severity, mitigate first, then diagnose, communicate,
+  and write a blameless postmortem with real action items. Use during or after an outage,
+  elevated error rates, a latency regression, a bad deploy, or when on-call and paged; also
+  use for writing the postmortem/RCA afterwards.
 ---
 
 # Incident Response

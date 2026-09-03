@@ -1,6 +1,11 @@
 ---
 name: api-change-review
-description: Review a change to an API contract for compatibility before it ships, across REST/JSON, gRPC/protobuf, or Thrift IDL. Catches breaking changes, wrong field numbering, missing pagination, weak error models, and non-idempotent writes. Use when adding or changing an endpoint or RPC, editing a .proto or .thrift file, versioning or deprecating an API, or reviewing an API design or PR that touches a public contract.
+description: >-
+  Review a change to an API contract for compatibility before it ships, across REST/JSON,
+  gRPC/protobuf, or Thrift IDL. Catches breaking changes, wrong field numbering, missing
+  pagination, weak error models, and non-idempotent writes. Use when adding or changing an
+  endpoint or RPC, editing a .proto or .thrift file, versioning or deprecating an API, or
+  reviewing an API design or PR that touches a public contract.
 ---
 
 # API Change Review

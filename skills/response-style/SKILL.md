@@ -1,6 +1,10 @@
 ---
 name: response-style
-description: How to write output the user reads. Answer first, cut filler, no em or en dashes, no AI stock phrases, and state confidence honestly instead of hedging. Use when writing any response, summary, explanation, report, commit message, PR description, or documentation. Applies to every reply, not only long ones.
+description: >-
+  How to write output the user reads. Answer first, cut filler, no em or en dashes, no AI
+  stock phrases, and state confidence honestly instead of hedging. Use when writing any
+  response, summary, explanation, report, commit message, PR description, or documentation.
+  Applies to every reply, not only long ones.
 ---
 
 # Response Style

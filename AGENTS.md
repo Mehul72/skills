@@ -55,6 +55,7 @@ Name the skills you are using in one line before starting. Load them; do not wor
 | Stress test a plan | `grilling` |
 | Record a decision | `adr` |
 | Write a tech design | `backend-design-doc` |
+| Break multi step work into a plan, then execute it | `implementation-plan` |
 | Write or fix tests | `unit-test-gen` |
 | Logs, metrics, traces, alerts | `observability` |
 | Schema change, index, backfill | `migration-safety` |
@@ -75,6 +76,8 @@ Name the skills you are using in one line before starting. Load them; do not wor
 | Naming, comments, making code readable | `readable-code` |
 | Review a diff | `code-quality` |
 | Clean up working code | `code-simplification` |
+| Commit, write a PR description, respond to review | `git-workflow` |
+| Build pipeline, required checks, flaky or red CI | `ci-cd` |
 | Summarise the chat, hand off to a new window | `handoff` |
 
 Sequencing and escalation rules: `orchestrator`.
@@ -94,6 +97,9 @@ Pull these in mid task when they appear, even if not in the original plan.
 | A change that makes a runbook or README wrong | `documentation` |
 | The diff is much larger than the problem | `code-simplification` |
 | You cannot explain why a fix works | `systematic-debugging` |
+| A workflow or pipeline file, or CI that fails on a re-run | `ci-cd` |
+| The work is spanning more files or sessions than you can hold | `implementation-plan` |
+| About to commit, or the branch has become a pile | `git-workflow` |
 
 ## Non negotiable
 
@@ -104,6 +110,10 @@ Pull these in mid task when they appear, even if not in the original plan.
 - **Every outbound call has a timeout.**
 - **Never swallow an exception.** An auth check that fails open is a bypass.
 - **No secrets in source**, ever.
+- **Never push, never open a PR, never merge.** Commit locally when asked, then hand it over. Publishing is the user's call.
+- **No agent attribution in a commit.** No `Co-Authored-By`, no `Signed-off-by`, no tool name, no `--author`. One contributor: the user.
+- **Commit messages are one short line**, unless the user asks for more.
+- **Never rewrite published history.** Revert instead.
 - **Comment why, never what.** Name the intent instead of annotating the mechanism. No comment that restates the line below it.
 
 ## Skills that do not apply

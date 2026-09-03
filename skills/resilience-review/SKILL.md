@@ -1,6 +1,11 @@
 ---
 name: resilience-review
-description: Review or design how a service calls its dependencies so a downstream failure doesn't take it down: timeouts, deadline propagation, retries with jitter, retry budgets, circuit breakers, idempotency, and load shedding. Use when adding an outbound RPC/HTTP call, reviewing retry or timeout config, diagnosing a cascading failure or retry storm, or hardening a service for production.
+description: >-
+  Review or design how a service calls its dependencies so a downstream failure doesn't take
+  it down: timeouts, deadline propagation, retries with jitter, retry budgets, circuit
+  breakers, idempotency, and load shedding. Use when adding an outbound RPC/HTTP call,
+  reviewing retry or timeout config, diagnosing a cascading failure or retry storm, or
+  hardening a service for production.
 ---
 
 # Resilience Review

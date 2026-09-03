@@ -1,6 +1,12 @@
 ---
 name: observability
-description: Add or review logging, metrics, tracing, and alerts for a backend service so production failures are diagnosable: structured log discipline, RED/USE metrics, OpenTelemetry span conventions, cardinality control, and symptom-based alerting. Use when instrumenting a new service or endpoint, when an incident revealed you couldn't see what happened, when reviewing log/metric/alert changes, or on any mention of tracing, spans, dashboards, SLOs, or on-call alerts.
+description: >-
+  Add or review logging, metrics, tracing, and alerts for a backend service so production
+  failures are diagnosable: structured log discipline, RED/USE metrics, OpenTelemetry span
+  conventions, cardinality control, and symptom-based alerting. Use when instrumenting a new
+  service or endpoint, when an incident revealed you couldn't see what happened, when
+  reviewing log/metric/alert changes, or on any mention of tracing, spans, dashboards, SLOs,
+  or on-call alerts.
 ---
 
 # Observability

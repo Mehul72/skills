@@ -1,6 +1,11 @@
 ---
 name: migration-safety
-description: Review or write a database schema/data migration so it ships without downtime: expand-contract sequencing, lock analysis, safe index creation, and batched backfills. Use when the task involves ALTER TABLE, CREATE INDEX, adding/removing/renaming a column or table, changing a column type, adding a constraint or foreign key, backfilling data, or any DDL that will run against a table with live traffic.
+description: >-
+  Review or write a database schema/data migration so it ships without downtime:
+  expand-contract sequencing, lock analysis, safe index creation, and batched backfills. Use
+  when the task involves ALTER TABLE, CREATE INDEX, adding/removing/renaming a column or
+  table, changing a column type, adding a constraint or foreign key, backfilling data, or any
+  DDL that will run against a table with live traffic.
 ---
 
 # Migration Safety

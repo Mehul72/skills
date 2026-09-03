@@ -1,6 +1,10 @@
 ---
 name: systematic-debugging
-description: Find the actual root cause of a bug instead of guessing at fixes: reproduce, isolate by bisection, prove the mechanism, then fix and verify. Use when a test fails, a bug is reported, behavior is unexplained, something works locally but not in CI, a bug is intermittent or flaky, or when two or three attempted fixes have already failed.
+description: >-
+  Find the actual root cause of a bug instead of guessing at fixes: reproduce, isolate by
+  bisection, prove the mechanism, then fix and verify. Use when a test fails, a bug is
+  reported, behavior is unexplained, something works locally but not in CI, a bug is
+  intermittent or flaky, or when two or three attempted fixes have already failed.
 ---
 
 # Systematic Debugging

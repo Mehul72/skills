@@ -172,10 +172,19 @@ nothing to pull, so it prints the install command to re-run instead.
 ```
 
 Checks frontmatter, name to directory match, cross references, and the em dash ban.
-Run it before committing. It exists because a markdown formatter that does not
-understand YAML frontmatter reads a closing `---` as a Setext heading underline and
-rewrites `name:` into `## name:`, which silently breaks skill discovery. If your
-editor formats markdown on save, exclude `skills/**/SKILL.md` or run this after.
+Run it before committing.
+
+Frontmatter is parsed for real, with PyYAML or `ruby -ryaml`, whichever the machine
+has, and there is a stdlib heuristic behind them for the machine that has neither. A
+regex is not enough here: a plain YAML scalar cannot contain a colon followed by a
+space, and every description in this library is prose that does. Written plainly, the
+skill loader rejects the file with `mapping values are not allowed in this context`
+and the skill silently does not exist. Hence the folded `>-` block scalars.
+
+The other failure it exists for is a markdown formatter that does not understand YAML
+frontmatter: it reads a closing `---` as a Setext heading underline and rewrites
+`name:` into `## name:`, which also breaks discovery. If your editor formats markdown
+on save, exclude `skills/**/SKILL.md` or run this after.
 
 ### The always on layer
 
@@ -249,6 +258,7 @@ Grouped by when you'd reach for them.
 
 ```
 Deciding what to build ──→ grilling ──→ adr (the decision) ──→ backend-design-doc (the design)
+Sequencing the work ────→ implementation-plan (write the plan file, then execute it)
 Writing it ─────────────→ readable-code · unit-test-gen · observability
 Changing something live ─→ migration-safety (schema) · api-change-review (contract)
                            resilience-review (calls out) · safe-rollout (the deploy)
@@ -260,6 +270,7 @@ Frontend ───────────────→ frontend-data-fetching
                           accessibility · web-performance
 
 Before calling it done ──→ security-hardening · code-quality · code-simplification
+Handing it over ────────→ git-workflow (commit locally, never push) · ci-cd (what gates the merge)
 Auditing what exists ───→ security-audit (secrets in history, deps, CI/CD)
 Writing it down ────────→ documentation (runbooks, and what a change made false)
 Every reply ────────────→ response-style        Routing itself ──→ orchestrator
@@ -272,6 +283,7 @@ Each skill's opening also says what it is *not* for, and routes to its sibling.
 
 | Skill | What it does |
 |---|---|
+| `implementation-plan` | Turns agreed work into a plan file with verifiable steps, then executes it one step at a time with the file as the source of truth. Steps sized to one committable outcome, each with a "done when" someone else could run, plus a log of what already went wrong so a fresh window does not hit the same wall twice. Exists because context gets compacted and an unwritten plan disappears with no error message. |
 | `unit-test-gen` | Generates, fixes, and maintains unit tests for Go, Python, Java, JS/TS, and C++. Routes between a single-agent "lite" flow and a multi-agent writer/fixer pipeline based on how many functions are in scope. Carries per-language conventions (naming, mocking, run commands) and a defect-severity taxonomy covering concurrency, data persistence, interface contracts, and security. |
 | `readable-code` | The standard for code a stranger can read in one pass. Names that state intent and carry their units, comments that explain why in plain English and never restate the line below, the happy path least indented, and error messages someone can act on. Corrects the specific direction generated code fails in: over commented and under named. |
 | `observability` | Adds or reviews logs, metrics, traces, and alerts. Structured-log discipline, RED/USE metric selection, OpenTelemetry span conventions, a cardinality budget that keeps a stray `user_id` label from taking down your metrics backend, and symptom-based alerting with burn-rate thresholds. |
@@ -329,6 +341,16 @@ the diff exists, which is where the built in `/code-review`, `/security-review`,
 | `code-simplification` | Reduces working code without changing behavior. Deletes speculative abstraction, dead code, redundant state, and guards against impossible states. Holds the line that duplication is cheaper than the wrong abstraction, so fold on the third occurrence and not the second. |
 | `security-audit` | The other half of `security-hardening`: not the change about to land, but what is already wrong. Sweeps git history for credentials that were deleted but never rotated, checks dependency supply chain past `npm audit`, and audits the CI/CD pipeline that holds every deploy secret. Most of it is the filter, because an audit reporting forty issues gets shelved and six get fixed. |
 | `documentation` | Picks the right kind of document, then finds what the last change made false. Covers the runbook someone follows at 3am, the drift audit that maps a diff onto the docs it just invalidated, and what not to write, since every document is a maintenance liability. A wrong document is worse than a missing one, because a missing one sends you to the source. |
+
+### Handing it over
+
+The stretch between "it works" and "it is in main", which the rest of the library skipped.
+The agent's half of it stops at a local commit.
+
+| Skill | What it does |
+|---|---|
+| `git-workflow` | Working tree to a commit that is ready for the user to push, and no further. The agent never pushes, never opens a PR, and never merges; a PR description is written into the chat instead. Commit messages are one short line and carry no `Co-Authored-By`, no tool name, and no `--author`, so the history has exactly one contributor. Around that: branch before the first edit, stage deliberately instead of `git add -A`, never mix a refactor with a behaviour change, and a "how to verify" a reviewer can actually run. |
+| `ci-cd` | Designs or reviews a pipeline so that green means mergeable. Stage ordering against a feedback latency budget, hermetic builds (pinned versions and digests, lockfile installs, no network in unit tests, fixed timezone and seed), required checks that cannot be skipped into a false green, a flake protocol that treats a flaky test as the race it usually is rather than retrying it away, cache keys that cannot lie, and build once then promote the same artifact. Red main stops the line. |
 
 ### How the agent works and writes
 
@@ -400,6 +422,20 @@ drift audit. The four document kinds follow the
 Claude Code reads `CLAUDE.md` only and recommend the `@AGENTS.md` import to share one
 file across agents.
 
+`implementation-plan`, `git-workflow`, and `ci-cd` were written here, to cover the stretch
+between a settled decision and a merged change that the rest of the library skipped. The
+plan file pattern, a checklist that lives on disk and is re-read before each step rather
+than held in context, follows the shape used by
+[obra/superpowers](https://github.com/obra/superpowers) in `writing-plans` and
+`executing-plans`. The CI material was checked against GitHub's own docs rather than
+recalled: [security hardening for GitHub Actions](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions)
+for pinning actions to a full length commit SHA as the only immutable reference,
+defaulting `GITHUB_TOKEN` to read only, and not checking out untrusted code from a
+workflow that holds secrets, and
+[troubleshooting required status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks)
+for the path filter trap, where a required check that gets skipped stays pending and
+blocks the merge.
+
 The whole library contains no em or en dashes, checked mechanically. `response-style`
 bans them, and a library that banned them while using them everywhere would be teaching
 the opposite of what it says.
@@ -438,8 +474,11 @@ Create `skills/<name>/SKILL.md` with YAML frontmatter:
 ```markdown
 ---
 name: my-skill
-description: What it does and when the agent should reach for it. This is the only
-  part the agent sees before deciding to load the skill, so make the triggers explicit.
+description: >-
+  What it does and when the agent should reach for it. This is the only part the agent
+  sees before deciding to load the skill, so make the triggers explicit. Folded with
+  `>-` and indented, because a plain YAML scalar cannot hold a colon followed by a
+  space and a description like this one always ends up with one.
 ---
 
 # My Skill

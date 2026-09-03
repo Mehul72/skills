@@ -1,6 +1,12 @@
 ---
 name: security-audit
-description: Audit a whole repository for security problems that already exist, rather than reviewing a change about to land. Covers secrets sitting in git history, dependency supply chain, CI/CD pipeline security, and infrastructure config, then filters the results so what you report is worth acting on. Use when asked for a security audit, a threat model, a pentest style review, a secrets sweep, or a dependency and CI/CD risk check; when onboarding to an unfamiliar codebase; or before an external review.
+description: >-
+  Audit a whole repository for security problems that already exist, rather than reviewing a
+  change about to land. Covers secrets sitting in git history, dependency supply chain, CI/CD
+  pipeline security, and infrastructure config, then filters the results so what you report is
+  worth acting on. Use when asked for a security audit, a threat model, a pentest style
+  review, a secrets sweep, or a dependency and CI/CD risk check; when onboarding to an
+  unfamiliar codebase; or before an external review.
 ---
 
 # Security Audit

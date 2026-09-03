@@ -1,6 +1,12 @@
 ---
 name: documentation
-description: Write documentation that stays true, and find what a change just made false. Covers picking the right kind of document (tutorial, how to, reference, explanation), auditing docs for drift after shipping, writing a runbook someone can follow at 3am, and deciding what not to write. Use when adding or updating a README, runbook, or API docs, when a change alters behaviour someone has written down, after shipping a feature, when onboarding docs are wrong, or on any mention of documentation, docs, or a runbook.
+description: >-
+  Write documentation that stays true, and find what a change just made false. Covers picking
+  the right kind of document (tutorial, how to, reference, explanation), auditing docs for
+  drift after shipping, writing a runbook someone can follow at 3am, and deciding what not to
+  write. Use when adding or updating a README, runbook, or API docs, when a change alters
+  behaviour someone has written down, after shipping a feature, when onboarding docs are
+  wrong, or on any mention of documentation, docs, or a runbook.
 ---
 
 # Documentation

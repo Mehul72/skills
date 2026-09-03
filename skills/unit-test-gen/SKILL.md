@@ -1,6 +1,12 @@
 ---
 name: unit-test-gen
-description: MANDATORY WORKFLOW. NOT optional guidance. Generate, fix, and maintain unit tests for Go, JS/TS, Python, Java, and C++ projects. When this skill is invoked, you MUST execute each step sequentially as defined below. Do NOT skip, reorder, merge, or summarize steps. Do NOT treat this as reference material. This IS your execution plan. Trigger on "写单测", "生成单测", "补充测试", "修复测试", "保鲜测试", "提升覆盖率", "write/generate/add/fix unit tests", "freshness tests", "improve coverage", or "unit test".
+description: >-
+  MANDATORY WORKFLOW. NOT optional guidance. Generate, fix, and maintain unit tests for Go,
+  JS/TS, Python, Java, and C++ projects. When this skill is invoked, you MUST execute each
+  step sequentially as defined below. Do NOT skip, reorder, merge, or summarize steps. Do NOT
+  treat this as reference material. This IS your execution plan. Trigger on "写单测", "生成单测",
+  "补充测试", "修复测试", "保鲜测试", "提升覆盖率", "write/generate/add/fix unit tests", "freshness tests",
+  "improve coverage", or "unit test".
 allowed-tools:
 - Read
 - Write
