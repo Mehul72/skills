@@ -23,12 +23,40 @@ SRC="$LIB/skills"
 HOME_DIR="${SKILLS_DIR:-$HOME/.agent-skills}"
 DRY=0; FORCE=0; MODE=link; NO_EXCLUDE="${NO_EXCLUDE:-0}"
 EXCLUDE_MARKER="# agent config written by 'skills init', personal to this clone"
+# The heading that says someone has merged the library's rules into their own AGENTS.md.
+ROUTING_HEADING="## Skill routing"
+NEWLINE=$'\n'
 
 say()  { printf '  %s\n' "$*"; }
 ok()   { printf '  \033[32m+\033[0m %s\n' "$*"; }
 same() { printf '  \033[2m=\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
-run()  { [ "$DRY" = 1 ] && { printf '  \033[2m# %s\033[0m\n' "$*"; return 0; }; eval "$@"; }
+# run CMD ARG... - do it, or print what would happen under --dry-run. Takes an argv
+# vector rather than a string: the old form evaluated its argument, so a path holding an
+# apostrophe broke out of the quoting and a crafted one executed.
+run() {
+  if [ "$DRY" = 1 ]; then
+    local preview; preview="$(printf '%q ' "$@")"
+    printf '  \033[2m# %s\033[0m\n' "${preview% }"
+    return 0
+  fi
+  "$@"
+}
+
+# write_text MODE FILE TEXT - the one thing run() cannot express, since a redirection is
+# not part of an argv vector. TEXT is written verbatim, so callers carry their newlines.
+write_text() {
+  local mode="$1" file="$2" text="$3"
+  if [ "$DRY" = 1 ]; then
+    printf '  \033[2m# write %s to %s\033[0m\n' "$(printf '%q' "$text")" "$(printf '%q' "$file")"
+    return 0
+  fi
+  case "$mode" in
+    truncate) printf '%s' "$text" >  "$file" ;;
+    append)   printf '%s' "$text" >> "$file" ;;
+    *) printf 'write_text: unknown mode: %s\n' "$mode" >&2; return 1 ;;
+  esac
+}
 
 # place SRC DEST LABEL HINT - never clobbers a file that differs
 place() {
@@ -36,31 +64,31 @@ place() {
   if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then same "$label"; return; fi
   # Agents touch an empty config file on first run. There is nothing in it to keep, so
   # overwrite it rather than parking a .from-skills-library nobody reads.
-  if [ -e "$dst" ] && [ ! -L "$dst" ] && [ ! -s "$dst" ]; then run "rm -f '$dst'"; fi
+  if [ -e "$dst" ] && [ ! -L "$dst" ] && [ ! -s "$dst" ]; then run rm -f "$dst"; fi
   if [ -e "$dst" ]; then
     if cmp -s "$src" "$dst" 2>/dev/null; then same "$label"; return; fi
-    if [ "$FORCE" = 1 ]; then run "rm -f '$dst'"
+    if [ "$FORCE" = 1 ]; then run rm -f "$dst"
     else
-      run "cp '$src' '$dst.from-skills-library'"
+      run cp "$src" "$dst.from-skills-library"
       warn "$label exists and differs. Wrote $(basename "$dst").from-skills-library"
       [ -n "$hint" ] && say "    $hint"
       return
     fi
   fi
-  run "mkdir -p '$(dirname "$dst")'"
-  if [ "$MODE" = link ]; then run "ln -sf '$src' '$dst'"; else run "cp '$src' '$dst'"; fi
+  run mkdir -p "$(dirname "$dst")"
+  if [ "$MODE" = link ]; then run ln -sf "$src" "$dst"; else run cp "$src" "$dst"; fi
   ok "$label"
 }
 
 # relink DEST_DIR - symlink every skill into DEST_DIR
 relink_skills() {
   local dest="$1" n=0
-  run "mkdir -p '$dest'"
+  run mkdir -p "$dest"
   for d in "$SRC"/*/; do
     [ -f "$d/SKILL.md" ] || continue
     local name; name=$(basename "$d")
-    run "rm -rf '$dest/$name'"
-    if [ "$MODE" = link ]; then run "ln -s '${d%/}' '$dest/$name'"; else run "cp -R '$d' '$dest/$name'"; fi
+    run rm -rf "$dest/$name"
+    if [ "$MODE" = link ]; then run ln -s "${d%/}" "$dest/$name"; else run cp -R "$d" "$dest/$name"; fi
     n=$((n+1))
   done
   ok "$n skills -> $dest$([ "$MODE" = link ] && echo ' (symlinked)')"
@@ -71,11 +99,11 @@ import_line() {
   local file="$1" line="$2" label="$3"
   if [ -f "$file" ] && grep -qF "$line" "$file"; then same "$label"; return; fi
   if [ -f "$file" ]; then
-    run "printf '\n%s\n' '$line' >> '$file'"
+    write_text append "$file" "$NEWLINE$line$NEWLINE"
     ok "$label (appended import)"
   else
-    run "mkdir -p '$(dirname "$file")'"
-    run "printf '%s\n' '$line' > '$file'"
+    run mkdir -p "$(dirname "$file")"
+    write_text truncate "$file" "$line$NEWLINE"
     ok "$label"
   fi
 }
@@ -92,16 +120,29 @@ cmd_install() {
   if [ "${NO_HOOK:-0}" != 1 ]; then
     if command -v python3 >/dev/null 2>&1; then
       [ "$DRY" = 1 ] && say "# register UserPromptSubmit hook" || python3 - "$HOME/.claude/settings.json" "$LIB/hooks/inject-rules.sh" <<'PY'
-import json, os, sys
+import json, os, shlex, sys
 p, cmd = sys.argv[1], sys.argv[2]
 try: cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 except json.JSONDecodeError: print(f"  \033[33m!\033[0m {p} is not valid JSON, hook not registered"); sys.exit(0)
 ups = cfg.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
-if any(cmd in json.dumps(e) for e in ups): print("  \033[2m=\033[0m per-turn hook")
+stored_cmd = shlex.quote(cmd)
+command_hooks = [hook for entry in ups
+                 if isinstance(entry, dict) and isinstance(entry.get("hooks"), list)
+                 for hook in entry["hooks"]
+                 if isinstance(hook, dict) and hook.get("type") == "command"]
+matches = [hook for hook in command_hooks if hook.get("command") in (cmd, stored_cmd)]
+if matches:
+    changed = any(hook.get("command") != stored_cmd for hook in matches)
+    for hook in matches: hook["command"] = stored_cmd
+    if changed:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f: json.dump(cfg, f, indent=2); f.write("\n")
+        print("  \033[32m+\033[0m quoted existing per-turn hook")
+    else: print("  \033[2m=\033[0m per-turn hook")
 else:
-    ups.append({"hooks": [{"type": "command", "command": cmd}]})
+    ups.append({"hooks": [{"type": "command", "command": stored_cmd}]})
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    json.dump(cfg, open(p, "w"), indent=2); open(p, "a").write("\n")
+    with open(p, "w") as f: json.dump(cfg, f, indent=2); f.write("\n")
     print("  \033[32m+\033[0m per-turn hook -> ~/.claude/settings.json")
 PY
     else warn "python3 not found, hook not registered"; fi
@@ -136,8 +177,8 @@ link_launcher() {
   if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$LIB/bin/skills" ]; then
     same "launcher  ($dst)"
   else
-    run "mkdir -p '$bin_dir'"
-    run "ln -sf '$LIB/bin/skills' '$dst'"
+    run mkdir -p "$bin_dir"
+    run ln -sf "$LIB/bin/skills" "$dst"
     ok "launcher -> $dst"
   fi
   check_on_path
@@ -179,7 +220,8 @@ exclude_from_git() {
 
   local f pending="" tracked="" n=0
   for f in AGENTS.md CLAUDE.md GEMINI.md CONVENTIONS.md .clinerules .windsurfrules \
-           .github/copilot-instructions.md '*.from-skills-library'; do
+           .github/copilot-instructions.md .cursor/rules/skills.mdc \
+           .cursor/rules/agent-rules.mdc '*.from-skills-library'; do
     case "$f" in
       \**) ;;                      # a glob for the backup copies, nothing to stat
       *)
@@ -210,19 +252,120 @@ exclude_from_git() {
   if [ -n "$tracked" ]; then say "tracked already, left visible:$tracked"; fi
 }
 
-# Where the checksum of the AGENTS.md init last wrote is kept. Beside .git/info/exclude
-# for the same reason: local to one clone, never committed, invisible to a teammate.
+# Where the checksum of a file init wrote is kept. Beside .git/info/exclude for the same
+# reason: local to one clone, never committed, invisible to a teammate. $2 names which
+# file; empty is AGENTS.md, whose stamp predates the others and keeps its old path.
 init_stamp() {
   local common
   common=$(git -C "$1" rev-parse --git-common-dir 2>/dev/null) || return 1
   case "$common" in /*) ;; *) common="$1/$common" ;; esac
-  printf '%s' "$common/info/skills-init.sha"
+  printf '%s' "$common/info/skills-init${2:+-$2}.sha"
 }
 
 sha_of() {
   if command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1
   elif command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
   fi
+}
+
+# place_tracked SRC DST LABEL REPO [KEY] [HINT] - copy SRC to DST, refreshing a copy
+# nobody has edited. place() on its own cannot tell its own stale output from something
+# the user typed, so without the stamp a repo set up before a library update keeps the
+# old file for good and collects a .from-skills-library on every run.
+place_tracked() {
+  local src="$1" dst="$2" label="$3" repo="$4" key="${5:-}" hint="${6:-}"
+  local stamp recorded current mode_saved
+  stamp="$(init_stamp "$repo" "$key" || true)"
+  recorded=""
+  if [ -n "$stamp" ]; then recorded="$(cat "$stamp" 2>/dev/null || true)"; fi
+  current="$(sha_of "$dst" 2>/dev/null || true)"
+
+  # Requiring a non-empty hash matters: with no hashing tool on the machine, "" = ""
+  # would match every file and delete one the user wrote.
+  if [ -n "$current" ] && [ "$current" = "$recorded" ] && ! cmp -s "$src" "$dst"; then
+    run rm -f "$dst"
+    say "$(basename "$dst") was unedited since init wrote it, so refreshing it"
+  fi
+
+  mode_saved="$MODE"; MODE=copy
+  place "$src" "$dst" "$label" "$hint"
+  MODE="$mode_saved"
+
+  # Only stamp a file that matches the library, so a user edit is never recorded as ours.
+  if [ -n "$stamp" ] && [ "$DRY" != 1 ] && cmp -s "$src" "$dst" 2>/dev/null; then
+    current="$(sha_of "$dst" 2>/dev/null || true)"
+    if [ -n "$current" ]; then
+      mkdir -p "$(dirname "$stamp")" && printf '%s\n' "$current" > "$stamp"
+    fi
+  fi
+  return 0
+}
+
+# agents_md_covered REPO - true when the repo's root AGENTS.md carries the library's
+# rules, either because init wrote it or because somebody merged them in by hand. On a
+# dry run the file is not there yet, but a real run would have just written ours.
+agents_md_covered() {
+  local repo="$1"
+  cmp -s "$LIB/AGENTS.md" "$repo/AGENTS.md" 2>/dev/null && return 0
+  grep -qF "$ROUTING_HEADING" "$repo/AGENTS.md" 2>/dev/null && return 0
+  [ "$DRY" = 1 ] && [ ! -e "$repo/AGENTS.md" ] && return 0
+  return 1
+}
+
+# cursor_rules REPO - Cursor reads .cursor/rules/*.mdc and has no skill mechanism, so
+# "load the migration-safety skill" means nothing to it unless it is told where the file
+# is and to go read it. This is also the way in when the repo root already has an
+# AGENTS.md of its own, which Cursor reads and init must not overwrite.
+cursor_rules() {
+  local repo="$1" dir="$repo/.cursor/rules" staging names d covered
+  # Named after their destinations so a --dry-run preview reads as what it is.
+  staging="$(mktemp -d)"
+
+  names=""
+  for d in "$SRC"/*/; do
+    [ -f "$d/SKILL.md" ] || continue
+    names="$names $(basename "$d")"
+  done
+
+  {
+    printf -- '---\ndescription: How to load a skill named in the routing table\nalwaysApply: true\n---\n\n'
+    printf '# Agent skills\n\n'
+    printf 'The skills the routing table names are files on this machine. Cursor has no skill\n'
+    printf 'mechanism, so read one yourself before following it:\n\n'
+    printf '    cat %s/skills/<name>/SKILL.md\n\n' "$LIB"
+    printf 'Some keep extra material beside them. List the directory and read whatever the\n'
+    printf 'skill points you at:\n\n'
+    printf '    ls %s/skills/<name>/\n\n' "$LIB"
+    printf 'Never work from a skill name alone, and do not reconstruct one from memory. If the\n'
+    printf 'file is not there, say so.\n\n'
+    printf 'Installed:%s\n' "$names"
+  } > "$staging/skills.mdc"
+  place_tracked "$staging/skills.mdc" "$dir/skills.mdc" ".cursor/rules/skills.mdc  (Cursor)" \
+    "$repo" cursor-skills "delete it and re-run init to regenerate"
+
+  # Cursor reads a root AGENTS.md natively, so a second always-on copy of the same rules
+  # would just occupy its context twice. Write one only when the root file belongs to
+  # somebody else and does not already carry the routing table.
+  covered=0
+  if agents_md_covered "$repo"; then covered=1; fi
+
+  if [ "$covered" = 1 ]; then
+    if [ -e "$dir/agent-rules.mdc" ]; then
+      warn ".cursor/rules/agent-rules.mdc duplicates the rules AGENTS.md now carries. Delete it."
+    else
+      same ".cursor/rules/agent-rules.mdc  (not needed, Cursor reads AGENTS.md)"
+    fi
+  else
+    {
+      printf -- '---\ndescription: Always-on output, confidence, and production rules\nalwaysApply: true\n---\n\n'
+      cat "$LIB/AGENTS.md"
+    } > "$staging/agent-rules.mdc"
+    place_tracked "$staging/agent-rules.mdc" "$dir/agent-rules.mdc" \
+      ".cursor/rules/agent-rules.mdc  (Cursor, since AGENTS.md is taken)" "$repo" cursor-agents
+  fi
+
+  rm -rf "$staging"
+  return 0
 }
 
 cmd_init() {
@@ -232,51 +375,51 @@ cmd_init() {
   echo "Repo layer -> $repo"
   echo
 
-  # A copy init wrote that nobody has since edited is safe to refresh. Without this,
-  # place() cannot tell its own stale output from something the user wrote, so every
-  # repo set up before a library update stays on the old rules for good.
-  local stamp; stamp="$(init_stamp "$repo" || true)"
-  if [ -n "$stamp" ] && [ -f "$stamp" ] && [ -f "$repo/AGENTS.md" ] \
-     && [ "$(sha_of "$repo/AGENTS.md")" = "$(cat "$stamp")" ] \
-     && ! cmp -s "$LIB/AGENTS.md" "$repo/AGENTS.md"; then
-    run "rm -f '$repo/AGENTS.md'"
-    say "AGENTS.md was unedited since init wrote it, so refreshing it"
-  fi
-
   # AGENTS.md is the canonical file; every other agent points at it.
-  local MODE_SAVED=$MODE; MODE=copy
-  place "$LIB/AGENTS.md" "$repo/AGENTS.md" "AGENTS.md  (Cursor, Codex, Windsurf, Aider, Zed, Jules, Amp)" \
-        "merge the library's AGENTS.md into yours, or re-run with --force to overwrite"
-  MODE=$MODE_SAVED
-
-  # Only stamp a file that matches the library, so a user edit is never recorded as ours.
-  if [ -n "$stamp" ] && [ "$DRY" != 1 ] && cmp -s "$LIB/AGENTS.md" "$repo/AGENTS.md" 2>/dev/null; then
-    mkdir -p "$(dirname "$stamp")" && sha_of "$repo/AGENTS.md" > "$stamp"
-  fi
+  place_tracked "$LIB/AGENTS.md" "$repo/AGENTS.md" \
+    "AGENTS.md  (Cursor, Codex, Windsurf, Aider, Zed, Jules, Amp)" "$repo" "" \
+    "merge the library's AGENTS.md into yours, or re-run with --force to overwrite"
 
   # Claude Code reads CLAUDE.md only, so import AGENTS.md from it.
   if [ -f "$repo/CLAUDE.md" ]; then
     if grep -qF "@AGENTS.md" "$repo/CLAUDE.md"; then same "CLAUDE.md  (Claude Code)"
     else warn "CLAUDE.md exists. Add this line to it:"; say "    @AGENTS.md"; fi
   else
-    run "printf '@AGENTS.md\n' > '$repo/CLAUDE.md'"
+    write_text truncate "$repo/CLAUDE.md" "@AGENTS.md$NEWLINE"
     ok "CLAUDE.md  (Claude Code)"
   fi
 
   # Agents that want their own filename: point them at AGENTS.md with a relative symlink.
+  # When that file is somebody else's the link is still worth making, since their rules
+  # beat none, but it carries nothing of the library's. Reporting that as a green + is
+  # what made the gap invisible, so these say so instead.
+  local rules_reached=0
+  if agents_md_covered "$repo"; then rules_reached=1; fi
+
   link_alias() {  # $1 = path relative to repo, $2 = relative target, $3 = label
     local dst="$repo/$1"
-    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$2" ]; then same "$1  ($3)"; return; fi
-    if [ -e "$dst" ]; then warn "$1 exists, left alone  ($3)"; return; fi
-    run "mkdir -p '$(dirname "$dst")'"
-    run "ln -s '$2' '$dst'"
-    ok "$1 -> $2  ($3)"
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$2" ]; then
+      if [ "$rules_reached" = 1 ]; then same "$1  ($3)"
+      else warn "$1  ($3) reads an AGENTS.md that is not the library's"; fi
+      return 0
+    fi
+    if [ -e "$dst" ]; then warn "$1 exists, left alone  ($3)"; return 0; fi
+    run mkdir -p "$(dirname "$dst")"
+    run ln -s "$2" "$dst"
+    if [ "$rules_reached" = 1 ]; then ok "$1 -> $2  ($3)"
+    else warn "$1 -> $2  ($3), which carries none of the library's rules"; fi
+    return 0
   }
   link_alias ".github/copilot-instructions.md" "../AGENTS.md" "GitHub Copilot"
   link_alias ".clinerules"                     "AGENTS.md"    "Cline"
   link_alias ".windsurfrules"                  "AGENTS.md"    "Windsurf"
   link_alias "GEMINI.md"                       "AGENTS.md"    "Gemini CLI"
   link_alias "CONVENTIONS.md"                  "AGENTS.md"    "Aider"
+  if [ "$rules_reached" = 0 ]; then
+    say "    those five read the repo's own AGENTS.md. Only Cursor has a second channel."
+    say "    merge AGENTS.md.from-skills-library into it to give them the routing table."
+  fi
+  cursor_rules "$repo"
   echo
   exclude_from_git "$repo"
   echo
@@ -304,7 +447,8 @@ cmd_doctor() {
   check_on_path
   echo
   echo "This repo ($PWD)"
-  for f in AGENTS.md CLAUDE.md .github/copilot-instructions.md .clinerules .windsurfrules GEMINI.md CONVENTIONS.md; do
+  for f in AGENTS.md CLAUDE.md .github/copilot-instructions.md .clinerules .windsurfrules \
+           GEMINI.md CONVENTIONS.md .cursor/rules/skills.mdc; do
     [ -e "$f" ] && ok "$f" || warn "$f  missing"
   done
 }
@@ -315,7 +459,7 @@ cmd_uninstall() {
     for d in "$SRC"/*/; do
       name=$(basename "$d")
       [ -e "$dest/$name" ] || [ -L "$dest/$name" ] || continue
-      run "rm -rf '$dest/$name'"
+      run rm -rf "$dest/$name"
     done
     ok "removed skills from ${dest/#$HOME/~}"
   done

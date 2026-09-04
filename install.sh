@@ -138,25 +138,40 @@ if [ -d "$LIB_DIR/hooks" ] && [ "${NO_HOOK:-0}" != "1" ]; then
 
   if command -v python3 >/dev/null 2>&1; then
     python3 - "$BASE/settings.json" "$HOOK_CMD" <<'PYEOF'
-import json, os, sys
+import json, os, shlex, sys
 p, cmd = sys.argv[1], sys.argv[2]
 try:
     cfg = json.load(open(p)) if os.path.exists(p) and os.path.getsize(p) else {}
 except json.JSONDecodeError:
     print(f"  ! {p} is not valid JSON, hook not registered"); sys.exit(0)
 ups = cfg.setdefault("hooks", {}).setdefault("UserPromptSubmit", [])
-if any(cmd in json.dumps(e) for e in ups):
-    print("  = hook already registered")
+if cmd.startswith("${CLAUDE_PROJECT_DIR}/"):
+    stored_cmd = f'"{cmd}"'
 else:
-    ups.append({"hooks": [{"type": "command", "command": cmd}]})
+    stored_cmd = shlex.quote(cmd)
+command_hooks = [hook for entry in ups
+                 if isinstance(entry, dict) and isinstance(entry.get("hooks"), list)
+                 for hook in entry["hooks"]
+                 if isinstance(hook, dict) and hook.get("type") == "command"]
+matches = [hook for hook in command_hooks if hook.get("command") in (cmd, stored_cmd)]
+if matches:
+    changed = any(hook.get("command") != stored_cmd for hook in matches)
+    for hook in matches: hook["command"] = stored_cmd
+    if changed:
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p, "w") as f: json.dump(cfg, f, indent=2); f.write("\n")
+        print("  + quoted existing UserPromptSubmit hook")
+    else:
+        print("  = hook already registered")
+else:
+    ups.append({"hooks": [{"type": "command", "command": stored_cmd}]})
     os.makedirs(os.path.dirname(p), exist_ok=True)
-    json.dump(cfg, open(p, "w"), indent=2); open(p, "a").write("\n")
+    with open(p, "w") as f: json.dump(cfg, f, indent=2); f.write("\n")
     print(f"  + registered UserPromptSubmit hook in {p}")
 PYEOF
   else
-    echo "  ! python3 not found. Add to $BASE/settings.json by hand:"
-    echo "      \"hooks\": { \"UserPromptSubmit\": [ { \"hooks\": [ { \"type\": \"command\","
-    echo "        \"command\": \"$HOOK_CMD\" } ] } ] }"
+    echo "  ! python3 not found. Hook not registered in $BASE/settings.json."
+    echo "      Add a command hook for this path with shell quoting: $HOOK_CMD"
   fi
 fi
 
