@@ -103,9 +103,45 @@ CLAUDE.md                          @AGENTS.md          Claude Code
 .windsurfrules                  -> AGENTS.md           Windsurf
 GEMINI.md                       -> AGENTS.md           Gemini CLI
 CONVENTIONS.md                  -> AGENTS.md           Aider
+.cursor/rules/skills.mdc           generated           Cursor
 ```
 
 Relative symlinks, so the repo stays portable and one edit updates every agent.
+
+When the repo root already has an `AGENTS.md` that is not the library's, those five
+aliases still get created, because the project's own rules beat none, but they carry
+nothing of the library's. `init` reports that as a warning rather than a green `+`, and
+points at the parked `AGENTS.md.from-skills-library` to merge. Cursor is the exception:
+it has a second channel, and gets the rules either way.
+
+### Cursor
+
+Cursor is the one agent that needs more than a pointer to `AGENTS.md`, for two reasons.
+
+It has no skill mechanism. Claude Code has the Skill tool and Codex auto-discovers
+`~/.codex/skills/`, so for them the routing table naming `migration-safety` is enough.
+Cursor has nothing to load, so `skills init` writes `.cursor/rules/skills.mdc`, an
+always-on rule holding the absolute path to the library and the instruction to read
+the file before acting on it:
+
+```
+cat ~/.agent-skills/skills/<name>/SKILL.md
+```
+
+The list of installed skills is baked into that file, so it is regenerated on every
+`init` and refreshed when you add a skill upstream.
+
+The second reason is collisions. Cursor reads a repo's `AGENTS.md`, and plenty of
+repos already have one that is not yours. `init` will not overwrite it, which used to
+mean Cursor got nothing. Now it falls back to `.cursor/rules/agent-rules.mdc`, the
+library's rules wrapped in `alwaysApply: true` frontmatter. Cursor loads both, so the
+project's own instructions survive alongside the output and confidence rules.
+
+That second file is written **only** when the root `AGENTS.md` is somebody else's.
+When it is the library's, Cursor reads it natively and a second copy would occupy the
+context twice. Merge the parked `AGENTS.md.from-skills-library` into your own file and
+the next `init` says the `.cursor` copy is now redundant, rather than deleting a file
+you may have edited.
 
 ### Those files stay out of git
 
@@ -120,7 +156,7 @@ a real `AGENTS.md` would be worse than showing it. And it never touches a repo b
 `git init`; run init again afterwards, or pass `--no-exclude` to skip the whole thing.
 
 ```bash
-skills init                 # excludes AGENTS.md, CLAUDE.md, and the five aliases
+skills init                 # excludes AGENTS.md, CLAUDE.md, the aliases, .cursor/rules
 skills init --no-exclude    # leave them visible, to commit them for the team
 ```
 
@@ -200,6 +236,10 @@ to the repo root:
 - **`CLAUDE.md`** is one line, `@AGENTS.md`, plus a few Claude specific notes. Claude Code
   reads `CLAUDE.md` and not `AGENTS.md`, so the import is what connects them.
 
+Plus `.cursor/rules/skills.mdc`, which is the exception to the no-paths rule above. A
+path is wrong for a general audience but right for exactly one agent, and Cursor is the
+one that cannot load a skill any other way. See [Cursor](#cursor).
+
 Neither is ever overwritten. If you already have one, the installer writes
 `AGENTS.md.from-skills-library` beside it and tells you what to merge.
 
@@ -221,13 +261,16 @@ nested files in subdirectories taking precedence over the root one.
 
 | Agent | Reads | Notes |
 |---|---|---|
-| Codex, Cursor, Copilot, Gemini CLI, Windsurf, Zed, Aider, Devin, Jules | `AGENTS.md` | Native, nothing extra needed |
+| Codex, Copilot, Gemini CLI, Windsurf, Zed, Aider, Devin, Jules | `AGENTS.md` | Native, nothing extra needed |
+| Cursor | `AGENTS.md` + `.cursor/rules/` | Reads `AGENTS.md` natively, but has no skill loader. See [Cursor](#cursor) |
 | Claude Code | `CLAUDE.md` only | The `@AGENTS.md` import is what bridges it |
 | Cline | `.clinerules` | Not covered. Symlink it: `ln -s AGENTS.md .clinerules` |
 | GitHub Copilot in the editor | `.github/copilot-instructions.md` | Separate from the Coding Agent. Symlink if you use it |
 
 Cursor also accepts `.cursor/rules/*.mdc` with `alwaysApply: true`, which is
-equivalent to `AGENTS.md` for this purpose. Use one or the other, not both.
+equivalent to `AGENTS.md` for this purpose. `skills init` uses that channel for the
+skill loading instructions Cursor cannot get any other way, and falls back to it for
+the rules themselves when the repo root already has an `AGENTS.md`. See [Cursor](#cursor).
 
 #### Per turn reinforcement
 

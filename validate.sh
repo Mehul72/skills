@@ -121,12 +121,35 @@ for f in files:
             line = t[:t.index(ch)].count("\n") + 1
             fail.append(f"{f}:{line}: {label} (response-style bans these)")
 
+# A skill named in prose but not on disk loads as nothing, and the routing table in
+# AGENTS.md is entirely such names. The trigger words are the ones this library uses to
+# introduce a skill; "and" is not among them, because it introduces list items and a run
+# of HTML attributes reads exactly like a reference. Checked against the corpus: dropping
+# it loses no real match and removes the only false positive.
 for f in sorted(glob.glob("skills/*/SKILL.md")) + ["AGENTS.md"]:
     if not os.path.exists(f): continue
-    for m in re.finditer(r"(?:use|see|is|to|and) `([a-z]+(?:-[a-z]+)+)`", open(f).read()):
+    t = open(f).read()
+    # Case-insensitive: "See `observability`" starts six sentences in this library, and a
+    # case-sensitive trigger silently skipped every one of them.
+    for m in re.finditer(r"(?:use|see|is|to|in|through) `([a-z]+(?:-[a-z]+)+)`", t, re.I):
         c = m.group(1)
-        if c not in names and c in {n for n in names} | set():
-            fail.append(f"{f}: reference to missing skill '{c}'")
+        if c not in names:
+            fail.append(f"{f}:{t[:m.start()].count(chr(10)) + 1}: "
+                        f"reference to a skill that does not exist: '{c}'")
+
+# Every backticked name in an AGENTS.md table row is a skill name: the routing and
+# escalation tables hold nothing else. This is the case that matters most, since those
+# tables are how an agent decides what to load, and it is the one the prose rule above
+# cannot reach, both because a table cell has no trigger word and because the prose
+# pattern requires a hyphen, which single-word skills like `grilling` do not have.
+if os.path.exists("AGENTS.md"):
+    row_name = re.compile(r"`([a-z][a-z0-9]*(?:-[a-z0-9]+)*)`")
+    for i, line in enumerate(open("AGENTS.md").read().split("\n"), start=1):
+        if not line.lstrip().startswith("|"): continue
+        for c in row_name.findall(line):
+            if c not in names:
+                fail.append(f"AGENTS.md:{i}: routing table names a skill "
+                            f"that does not exist: '{c}'")
 
 for f in ("bootstrap.sh", "install.sh", "validate.sh", "test-install.sh",
           "bin/skills", "hooks/inject-rules.sh"):
