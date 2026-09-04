@@ -92,6 +92,50 @@ check "links point at the stable home" "$H/.agent-skills/skills/handoff" "$(read
 check "nothing points into the npx cache" "0" \
   "$(find "$H/.claude" "$H/.codex" "$H/.local" -type l -lname '*_npx*' 2>/dev/null | wc -l | tr -d ' ')"
 check "launcher survives the cache"  "$H/.agent-skills/bin/skills" "$(readlink "$H/.local/bin/skills")"
+mkdir -p "$H/.agent-skills/skills/removed-upstream"
+mkdir -p "$H/.agent-skills/user-owned-directory"
+printf '\nrefreshed npm payload\n' >> "$PKG/skills/handoff/SKILL.md"
+HOME="$H" bash "$PKG/bin/skills" install >/dev/null 2>&1
+check "npm refresh replaces stale skills" "no" \
+  "$([ -e "$H/.agent-skills/skills/removed-upstream" ] && echo yes || echo no)"
+check "npm refresh installs the new payload" "1" \
+  "$(grep -cF 'refreshed npm payload' "$H/.agent-skills/skills/handoff/SKILL.md")"
+check "npm refresh keeps unmanaged entries" "yes" \
+  "$([ -d "$H/.agent-skills/user-owned-directory" ] && echo yes || echo no)"
+
+INTERRUPT_BIN="$WORK/interrupt-bin"
+mkdir -p "$INTERRUPT_BIN"
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  '"${SKILLS_TEST_REAL_MV:?}" "$@"' \
+  'rc=$?' \
+  'if [ "$rc" -eq 0 ] && [ "${1:-}" = "${SKILLS_TEST_INTERRUPT_SOURCE:-}" ]; then' \
+  '  kill -TERM "$PPID"' \
+  'fi' \
+  'exit "$rc"' > "$INTERRUPT_BIN/mv"
+chmod +x "$INTERRUPT_BIN/mv"
+printf '\ninterrupted npm payload\n' >> "$PKG/skills/handoff/SKILL.md"
+env HOME="$H" PATH="$INTERRUPT_BIN:$PATH" SKILLS_TEST_REAL_MV="$(command -v mv)" \
+  SKILLS_TEST_INTERRUPT_SOURCE="$H/.agent-skills/skills" \
+  bash "$PKG/bin/skills" install >/dev/null 2>&1
+interrupt_rc=$?
+check "interrupted npm refresh exits nonzero" "nonzero" \
+  "$([ "$interrupt_rc" -ne 0 ] && echo nonzero || echo zero)"
+check "interrupted npm refresh restores the previous payload" "0" \
+  "$(grep -cF 'interrupted npm payload' "$H/.agent-skills/skills/handoff/SKILL.md")"
+check "interrupted npm refresh leaves no dangling links" "0" \
+  "$(find "$H/.claude" "$H/.codex" "$H/.local" -type l ! -exec test -e {} \; -print | wc -l | tr -d ' ')"
+check "interrupted npm refresh removes staging directories" "0" \
+  "$(find "$H" -maxdepth 1 -type d -name '.agent-skills.*' | wc -l | tr -d ' ')"
+
+rm -rf "$PKG/skills"
+HOME="$H" bash "$PKG/bin/skills" install >/dev/null 2>&1
+refresh_rc=$?
+check "failed npm refresh exits nonzero" "nonzero" "$([ "$refresh_rc" -ne 0 ] && echo nonzero || echo zero)"
+check "failed npm refresh keeps the installed library" "yes" \
+  "$([ -d "$H/.agent-skills/skills" ] && echo yes || echo no)"
+check "failed npm refresh leaves no dangling skill links" "0" \
+  "$(find "$H/.claude" "$H/.codex" "$H/.local" -type l ! -exec test -e {} \; -print | wc -l | tr -d ' ')"
 rm -rf "$H/npmcache"
 check "skills still resolve after the cache is wiped" "name: handoff" \
   "$(sed -n 2p "$H/.codex/skills/handoff/SKILL.md")"

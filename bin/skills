@@ -333,24 +333,73 @@ from_npm() {
   case "$LIB" in */node_modules/*|*/_npx/*) return 0 ;; *) return 1 ;; esac
 }
 
+rollback_materialization() {
+  local destination="$1" staging="$2" previous="$3"
+  local item target saved restore_failed=0
+  trap - HUP INT TERM
+  while IFS= read -r item; do
+    target="$destination/$item"
+    saved="$previous/$item"
+    if [ -e "$saved" ] || [ -L "$saved" ]; then
+      rm -rf "$target"
+      mkdir -p "$(dirname "$target")"
+      if ! mv "$saved" "$target"; then
+        warn "could not restore $target, the previous copy remains at $saved"
+        restore_failed=1
+      fi
+    elif { [ ! -e "$staging/$item" ] && [ ! -L "$staging/$item" ]; }; then
+      rm -rf "$target"
+    fi
+  done < "$staging/.materialize-payload"
+  rm -rf "$staging"
+  if [ "$restore_failed" = 0 ]; then rm -rf "$previous"; fi
+  exit 1
+}
+
 materialize() {
-  if [ -d "$HOME_DIR/.git" ]; then
+  if [ -e "$HOME_DIR/.git" ]; then
     say "using the git clone already at $HOME_DIR (npm copy ignored)"
     return
   fi
   say "copying the library to $HOME_DIR"
   [ "$DRY" = 1 ] && return
-  mkdir -p "$HOME_DIR/bin"
-  # Wipe first: a skill deleted upstream must not survive as a stale copy.
-  rm -rf "$HOME_DIR/skills" "$HOME_DIR/hooks"
-  cp -R "$LIB/skills" "$LIB/hooks" "$HOME_DIR/"
-  cp "$LIB/bin/skills" "$HOME_DIR/bin/skills"
+  local parent name staging previous f item
+  local payload=(skills hooks bin/skills .installed-by-npm)
+  parent=$(dirname "$HOME_DIR")
+  name=$(basename "$HOME_DIR")
+  mkdir -p "$parent"
+  staging=$(mktemp -d "$parent/.${name}.new.XXXXXX")
+
+  mkdir -p "$staging/bin" || { rm -rf "$staging"; return 1; }
+  cp -R "$LIB/skills" "$LIB/hooks" "$staging/" || { rm -rf "$staging"; return 1; }
+  cp "$LIB/bin/skills" "$staging/bin/skills" || { rm -rf "$staging"; return 1; }
   for f in AGENTS.md CLAUDE.md README.md install.sh validate.sh bootstrap.sh package.json; do
-    [ -f "$LIB/$f" ] && cp "$LIB/$f" "$HOME_DIR/$f"
+    if [ -f "$LIB/$f" ]; then
+      cp "$LIB/$f" "$staging/$f" || { rm -rf "$staging"; return 1; }
+      payload+=("$f")
+    fi
   done
-  chmod +x "$HOME_DIR/bin/skills" "$HOME_DIR"/*.sh "$HOME_DIR"/hooks/*.sh 2>/dev/null || true
+  chmod +x "$staging/bin/skills" "$staging"/*.sh "$staging"/hooks/*.sh 2>/dev/null || true
   # Marker: `skills update` cannot git pull a copy, it has to go back through npm.
-  printf '%s\n' "$LIB" > "$HOME_DIR/.installed-by-npm"
+  printf '%s\n' "$LIB" > "$staging/.installed-by-npm" || { rm -rf "$staging"; return 1; }
+  printf '%s\n' "${payload[@]}" > "$staging/.materialize-payload" || {
+    rm -rf "$staging"; return 1;
+  }
+
+  mkdir -p "$HOME_DIR" || { rm -rf "$staging"; return 1; }
+  previous=$(mktemp -d "$parent/.${name}.old.XXXXXX") || { rm -rf "$staging"; return 1; }
+  trap 'rollback_materialization "$HOME_DIR" "$staging" "$previous"' HUP INT TERM
+  for item in "${payload[@]}"; do
+    if [ -e "$HOME_DIR/$item" ] || [ -L "$HOME_DIR/$item" ]; then
+      mkdir -p "$previous/$(dirname "$item")" || rollback_materialization "$HOME_DIR" "$staging" "$previous"
+      mv "$HOME_DIR/$item" "$previous/$item" || rollback_materialization "$HOME_DIR" "$staging" "$previous"
+    fi
+    mkdir -p "$(dirname "$HOME_DIR/$item")" || rollback_materialization "$HOME_DIR" "$staging" "$previous"
+    mv "$staging/$item" "$HOME_DIR/$item" || rollback_materialization "$HOME_DIR" "$staging" "$previous"
+  done
+  trap - HUP INT TERM
+  rm -rf "$staging" "$previous"
+
   local bin_dir="${SKILLS_BIN:-$HOME/.local/bin}"
   mkdir -p "$bin_dir" && ln -sf "$HOME_DIR/bin/skills" "$bin_dir/skills"
 }
