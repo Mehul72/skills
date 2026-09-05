@@ -302,7 +302,7 @@ Grouped by when you'd reach for them.
 ```
 Deciding what to build ──→ grilling ──→ adr (the decision) ──→ backend-design-doc (the design)
 Sequencing the work ────→ implementation-plan (write the plan file, then execute it)
-Writing it ─────────────→ readable-code · unit-test-gen · observability
+Writing it ─────────────→ readable-code · unit-test-gen (a suite) · observability
 Changing something live ─→ migration-safety (schema) · api-change-review (contract)
                            resilience-review (calls out) · safe-rollout (the deploy)
 Taking something away ───→ deprecation
@@ -327,7 +327,7 @@ Each skill's opening also says what it is *not* for, and routes to its sibling.
 | Skill | What it does |
 |---|---|
 | `implementation-plan` | Turns agreed work into a plan file with verifiable steps, then executes it one step at a time with the file as the source of truth. Steps sized to one committable outcome, each with a "done when" someone else could run, plus a log of what already went wrong so a fresh window does not hit the same wall twice. Exists because context gets compacted and an unwritten plan disappears with no error message. |
-| `unit-test-gen` | Generates, fixes, and maintains unit tests for Go, Python, Java, JS/TS, and C++. Routes between a single-agent "lite" flow and a multi-agent writer/fixer pipeline based on how many functions are in scope. Carries per-language conventions (naming, mocking, run commands) and a defect-severity taxonomy covering concurrency, data persistence, interface contracts, and security. |
+| `unit-test-gen` | Generates, fixes, and maintains unit tests for Go, Python, Java, JS/TS, and C++. Routes between a single-agent "lite" flow and a multi-agent writer/fixer pipeline based on how many functions are in scope. Carries per-language conventions (naming, mocking, run commands) and a defect-severity taxonomy covering concurrency, data persistence, interface contracts, and security. Sized for a suite: it opens with a scope check that sends one or two test cases down the direct path instead, because the language prompt it loads first costs more than those tests do. |
 | `readable-code` | The standard for code a stranger can read in one pass. Names that state intent and carry their units, comments that explain why in plain English and never restate the line below, the happy path least indented, and error messages someone can act on. Corrects the specific direction generated code fails in: over commented and under named. |
 | `observability` | Adds or reviews logs, metrics, traces, and alerts. Structured-log discipline, RED/USE metric selection, OpenTelemetry span conventions, a cardinality budget that keeps a stray `user_id` label from taking down your metrics backend, and symptom-based alerting with burn-rate thresholds. |
 
@@ -503,8 +503,12 @@ Two were reworked rather than copied:
   host and uploaded run results; the scratch directory is now a plain `mktemp -d`. Test
   names no longer carry the `_BitsUT` platform suffix, comment language follows the
   project instead of being pinned to Chinese, and the Lynx (internal framework)
-  reference is gone. The workflow, language prompts, and reference agents are otherwise
-  unchanged.
+  reference is gone. The entry point was also un-mandated: upstream declared itself a
+  MANDATORY WORKFLOW that forbade reading source before loading a five to six thousand
+  token language prompt, which is the wrong trade for one or two test cases. It now opens
+  with a scope check and the agent decides whether the job earns the setup. The
+  constraints that keep it from touching production code or misreporting a test run still
+  hold either way. The language prompts and reference agents are unchanged.
 - **`backend-design-doc`** was extracted from `adk-sdd-erd`, which was welded to
   `.ttadk/` scripts, config, and templates that don't exist outside that repo, and
   ended by uploading to Lark. Kept the diagram standards and document structure;

@@ -31,7 +31,7 @@ Read the request and answer three questions.
 | Design a feature, write a tech design | `backend-design-doc` |
 | Sequence multi step work, or work longer than one sitting | `implementation-plan` |
 | Record why a decision was made | `adr` |
-| Write or fix tests | `unit-test-gen` |
+| Write a suite for untested code, backfill coverage, repair a broken suite | `unit-test-gen` |
 | Add logs, metrics, traces, alerts | `observability` |
 | Change a schema, add a column or index, backfill | `migration-safety` |
 | Change an API, edit a `.proto` or `.thrift` | `api-change-review` |
@@ -69,7 +69,7 @@ grilling (if the approach is unsettled)
   → implementation-plan  (if it outlives one sitting; write the file before the first edit)
   → write the code       (readable-code applies while writing, not after)
   → security-hardening   (input, auth, secrets)
-  → unit-test-gen        (tests, run them)
+  → unit-test-gen        (a suite worth the setup; a case or two, just write it)
   → observability        (can we see it working)
   → code-quality         (the bar, before saying done)
   → documentation        (only what the change made wrong)

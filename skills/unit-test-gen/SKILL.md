@@ -1,12 +1,15 @@
 ---
 name: unit-test-gen
 description: >-
-  MANDATORY WORKFLOW. NOT optional guidance. Generate, fix, and maintain unit tests for Go,
-  JS/TS, Python, Java, and C++ projects. When this skill is invoked, you MUST execute each
-  step sequentially as defined below. Do NOT skip, reorder, merge, or summarize steps. Do NOT
-  treat this as reference material. This IS your execution plan. Trigger on "写单测", "生成单测",
-  "补充测试", "修复测试", "保鲜测试", "提升覆盖率", "write/generate/add/fix unit tests", "freshness tests",
-  "improve coverage", or "unit test".
+  Generate, fix, and maintain unit tests for Go, JS/TS, Python, Java, and C++ projects.
+  Carries per-language conventions (naming, mocking, framework choice, run commands), a
+  file and function filtering pass, and a defect severity taxonomy. Use when a file or
+  package has no tests, when backfilling coverage across several functions, or when an
+  existing suite is failing or stale. For one or two obvious cases against code you
+  already understand, write them directly instead; this skill is sized for the larger
+  job. Trigger on "写单测", "生成单测", "补充测试", "修复测试", "保鲜测试", "提升覆盖率",
+  "write/generate/add/fix unit tests", "freshness tests", "improve coverage", or
+  "unit test".
 allowed-tools:
 - Read
 - Write
@@ -20,15 +23,38 @@ metadata:
 
 Not for: judging whether existing tests are any good, or whether a change is ready to ship, which is `code-quality`. This skill generates and fixes tests.
 
-# ⚠️ IMMEDIATE FIRST ACTIONS. DO THIS NOW ⚠️
+## Is this job big enough for the protocol?
 
-**STOP. Do NOT read source code, do NOT analyze functions, do NOT write tests yet.**
+The protocol below has real setup cost: a language prompt of five to six thousand tokens,
+a workflow document, and a scratch directory, all read before the first test is written.
+That buys consistency across a suite. It is a bad trade for a couple of test cases.
 
-**Variable definitions** (used throughout this document):
-- `SKILL_ROOT` = the absolute path to the directory where this skill resides (i.e., the directory containing this `SKILL.md` file, like `<repo>/.claude/skills/unit-test-gen`)
-- `PROJECT_ROOT` = the absolute path to the root of the user's project being tested
+**Write the tests directly, and skip the rest of this document, when:**
 
-Upon loading this skill, execute these actions IN THIS EXACT ORDER before anything else:
+- One or two cases against a function whose behavior is already clear from the code
+- Adding a case to a suite that already exists, already passes, and has a style to copy
+- The user asked a question about testing rather than asking for tests
+
+**Use the protocol when:**
+
+- A file or package has no tests at all
+- Coverage work spans more than a few functions, or more than one file
+- A suite is failing or stale and finding out why is part of the job
+- The user asked for this skill by name
+
+When you skip the protocol, say so in one line before writing, so the choice is visible
+and the user can overrule it. When you follow it, follow it in order: the routing in
+Step 1 determines which workflow Step 2 reads, so the steps are not independent.
+
+---
+
+## Setup
+
+`SKILL_ROOT` is the directory holding this `SKILL.md`. `PROJECT_ROOT` is the root of the
+project under test.
+
+Do these before analysing any source, because the language prompt changes how targets are
+extracted:
 
 1. **Detect LANG** from target file extension (`.go`→go, `.py`→python, `.java`→java, `.js/.ts/.tsx`→javascript, `.cpp/.cc/.h`→cpp)
 2. **Read** `${SKILL_ROOT}/assets/${LANG}/prompt.md`, internalize language-specific rules
@@ -37,21 +63,19 @@ Upon loading this skill, execute these actions IN THIS EXACT ORDER before anythi
    TMP_ROOT=$(mktemp -d) && mkdir -p "$TMP_ROOT/targets" "$TMP_ROOT/results" && echo "$TMP_ROOT"
    ```
 4. **Record `TMP_ROOT`**, all targets/results JSON below is written under it
-5. **ONLY THEN** proceed to the Execution Protocol below
-
-**If you skip any of the above, you are VIOLATING this skill's protocol. There are NO exceptions.**
 
 ---
 
 ## Execution Protocol
 
-You are the **Unit Test Generation and Maintenance Tool**. Follow the numbered checklist below **exactly and sequentially**. Each step is mandatory unless explicitly marked `[CONDITIONAL]`.
+Work as the test generation and maintenance tool. The steps below run in order; sub-steps
+marked `[CONDITIONAL]` apply only when their condition holds.
 
 ---
 
 ## STEP 1: Requirements & Target Analysis
 
-Execute each sub-step. Do NOT combine or skip.
+Work through the sub-steps in order.
 
 ### 1.1 Gather Context
 
@@ -89,21 +113,11 @@ ELSE:
     WORKFLOW = "lite"
 ```
 
-### 1.5 GATE CHECK, MANDATORY OUTPUT
+### 1.5 Gate check
 
-**You MUST mentally confirm ALL variables below are set before proceeding. If any is missing, STOP and fix it.**
-
-| Variable | Set? |
-|----------|------|
-| `SKILL_ROOT` | ✓/✗ |
-| `PROJECT_ROOT` | ✓/✗ |
-| `LANG` | ✓/✗ |
-| `TMP_ROOT` | ✓/✗ |
-| `MODE` | ✓/✗ |
-| `DEFECT_DETECTION` | ✓/✗ |
-| `WORKFLOW` | ✓/✗ |
-
-**Do NOT proceed to Step 2 if any variable is missing.**
+Step 2 reads these; an unset one sends it down the wrong branch. Confirm each before
+continuing: `SKILL_ROOT`, `PROJECT_ROOT`, `LANG`, `TMP_ROOT`, `MODE`, `DEFECT_DETECTION`,
+`WORKFLOW`.
 
 ### 1.6 [CONDITIONAL] Pipeline Setup (only if WORKFLOW=pipeline)
 
@@ -120,21 +134,19 @@ ELSE:
 - If `WORKFLOW=lite` → Read `references/workflow-lite/AGENT.md` → execute its full flow
 - If `WORKFLOW=pipeline` → Read `references/workflow-pipeline/AGENT.md` → execute its full flow (dispatch Writer + Fixer)
 
-### Self-Check Before Writing Any Test Code
+### Before writing any test code
 
-Before you write or edit ANY test file, verify:
-
-- [ ] Did I create `TMP_ROOT`? → If NO: **STOP**, go back to Immediate First Actions
-- [ ] Did I read the workflow AGENT.md? → If NO: **STOP**, go read it now
-- [ ] Am I about to modify a non-test file? → If YES: **STOP**, this is FORBIDDEN
+- [ ] `TMP_ROOT` exists. If not, go back to Setup
+- [ ] The workflow AGENT.md has been read. If not, read it now
+- [ ] The file about to change is a test file. Modifying production code here is forbidden, without exception
 
 ---
 
 ## STEP 3: Output
 
-### 3.1 Artifact Check & Summary
+### 3.1 Artifact check and summary
 
-Execute the output logic defined in the workflow-specific AGENT.md:
+Follow the output logic in the workflow-specific AGENT.md:
 
 - **pipeline** → Aggregate `final_report.json`, complete artifact check, conversation summary from `results/`
 - **lite** → Aggregate `final_report.json`, lite artifact check, conversation summary from `results/`
@@ -145,14 +157,16 @@ Execute the output logic defined in the workflow-specific AGENT.md:
 
 ## Hard Constraints
 
-These rules are ABSOLUTE. No exceptions. No justification overrides them.
+These hold whenever the protocol runs, and when you skip the protocol and write tests
+directly. They are about not corrupting the codebase or misreporting results, so no
+argument about scale relaxes them.
 
 | # | Constraint | Consequence of Violation |
 |---|-----------|------------------------|
 | 1 | **Only modify test files**. NEVER modify production code | Entire run is invalid |
 | 2 | **No premature completion**. Fix or remove failing tests before finishing | Exceptions: must-skip scenarios; confirmed production defects (default mode only) |
 | 3 | **Tool output is truth**, Compile/test pass status is determined ONLY by command output | Subjective inference = violation |
-| 4 | **MUST execute Step 3**, the artifact check + summary are non-negotiable | Output without a summary = violation |
+| 4 | **Report what changed**. Finish with the artifact check and summary from Step 3 | Output without a summary = violation |
 | 5 | **Conservative defect determination**, Default to test issue; only flag production defect with conclusive evidence | False positives = violation |
 | 6 | **[SILENT] ≠ [OPTIONAL]**, Steps marked silent MUST still be executed | Skipping silent steps = violation |
 

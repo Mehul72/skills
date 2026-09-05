@@ -56,7 +56,7 @@ Name the skills you are using in one line before starting. Load them; do not wor
 | Record a decision | `adr` |
 | Write a tech design | `backend-design-doc` |
 | Break multi step work into a plan, then execute it | `implementation-plan` |
-| Write or fix tests | `unit-test-gen` |
+| Write a suite for untested code, backfill coverage, repair a broken suite | `unit-test-gen` |
 | Logs, metrics, traces, alerts | `observability` |
 | Schema change, index, backfill | `migration-safety` |
 | API, `.proto`, `.thrift` change | `api-change-review` |
